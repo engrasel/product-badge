@@ -1,0 +1,52 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "8d8fe813d634a58812d81a22d3ad98ff"
+name = "engrasel-product-badge"
+application_url = "https://example.com"
+embedded = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+# read_products: evaluating Display Rules (tags/vendor/type/inventory/discount/etc).
+# read_orders: aggregating recent orders for the "Best Selling Products" rule.
+# write_app_proxy: required to register the storefront App Proxy (Phase 7), even
+# though our proxy route itself is read-only.
+scopes = "read_products,read_orders,write_app_proxy"
+
+[app_proxy]
+url = "/apps/product-badges"
+prefix = "apps"
+subpath = "product-badges"
+
+[webhooks]
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = [ "app/uninstalled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
+
+  # Mandatory GDPR compliance webhooks — required before a public app can be
+  # submitted for App Store review. See app/routes/webhooks.customers.*.tsx
+  # and webhooks.shop.redact.tsx.
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/data_request"
+  compliance_topics = [ "customers/data_request" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/redact"
+  compliance_topics = [ "customers/redact" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/shop/redact"
+  compliance_topics = [ "shop/redact" ]
+
+[auth]
+redirect_urls = [ "https://example.com/api/auth" ]
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

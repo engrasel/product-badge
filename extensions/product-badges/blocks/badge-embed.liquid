@@ -1,0 +1,23 @@
+{%- comment -%}
+  App Embed Block (target: body) — the single ON/OFF switch under
+  Theme Settings > App embeds. Activating it loads the shared badge engine
+  once, site-wide: the stylesheet (shared keyframes, identical to the admin
+  live preview) and the renderer script that scans the page for product
+  cards, collection cards, search results, etc. and injects badges into them.
+
+  This block has no visible markup of its own — it only loads assets.
+  badge-renderer.js calls back into the app through the App Proxy
+  (/apps/product-badges/storefront-config), which identifies the shop from
+  Shopify's signed proxy request rather than anything the client sends.
+{%- endcomment -%}
+
+{{ 'badges-storefront.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'badge-renderer.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "t:badge_embed.name",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}

@@ -1,0 +1,29 @@
+/* Shared badge animation keyframes — used by both the admin live preview
+   (BadgePreview) and, in Phase 7, the storefront extension's own copy of
+   these rules. Kept in one file so the two stay visually identical. */
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes badge-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes badge-fade {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes badge-shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-4deg); }
+  75% { transform: rotate(4deg); }
+}
+
+.badge-anim-pulse { display: inline-block; animation: badge-pulse 1.6s ease-in-out infinite; }
+.badge-anim-bounce { display: inline-block; animation: badge-bounce 1.2s ease-in-out infinite; }
+.badge-anim-fade { display: inline-block; animation: badge-fade 1.8s ease-in-out infinite; }
+.badge-anim-shake { display: inline-block; animation: badge-shake 0.6s ease-in-out infinite; }

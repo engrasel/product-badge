@@ -1,0 +1,27 @@
+{%- comment -%}
+  App Block (target: section) — merchants drag this into their product
+  template via the theme editor for pixel-precise placement (e.g. right above
+  the title, or below the price), unlike the App Embed's site-wide heuristic
+  placement on cards/search/etc.
+
+  `product` is already in Liquid scope here because the block is rendered
+  inside the product template's main section, so no metafield or setting is
+  needed to know which product this is. The container is just a marked
+  anchor point — badge-renderer.js (shared with the App Embed) finds it via
+  data-product-handle and fills it in.
+{%- endcomment -%}
+
+<div
+  class="product-badges-anchor"
+  data-product-badges-target="product-detail-page"
+  data-product-id="{{ product.id }}"
+  data-product-handle="{{ product.handle }}"
+></div>
+
+{% schema %}
+{
+  "name": "t:product_badge.name",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}

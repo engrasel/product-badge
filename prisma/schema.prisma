@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+// Per-shop master switch and app-level state. One row per installed shop.
+model ShopSettings {
+  id        String   @id @default(cuid())
+  shop      String   @unique
+  isEnabled Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// A merchant's saved/customized badge — created from a library template or fully custom.
+// SQLite has no native enum support in Prisma, so shape/animation/position/templateKey
+// are plain strings validated against the TS union types in app/types/badge.types.ts.
+model Badge {
+  id              String   @id @default(cuid())
+  shop            String
+  name            String
+  templateKey     String // catalog key it was based on (e.g. "sale"), or "custom"
+  isActive        Boolean  @default(true)
+
+  text            String   @default("SALE")
+  backgroundColor String   @default("#FF3B30")
+  textColor       String   @default("#FFFFFF")
+  borderColor     String   @default("#FF3B30")
+  fontSize        Int      @default(12)
+  fontWeight      String   @default("600")
+  borderRadius    Int      @default(4)
+  shadow          Boolean  @default(false)
+  opacity         Int      @default(100)
+  rotation        Int      @default(0)
+  paddingX        Int      @default(8)
+  paddingY        Int      @default(4)
+  width           Int?
+  height          Int?
+  shape           String   @default("RIBBON")
+  animation       String   @default("NONE")
+  position        String   @default("TOP_RIGHT")
+  offsetX         Int      @default(0)
+  offsetY         Int      @default(0)
+  customCss       String?
+
+  rules     DisplayRule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shop])
+}
+
+// One condition that determines which products a badge appears on.
+// A badge can have several rules (e.g. Selected Collections + Inventory Below X).
+model DisplayRule {
+  id      String @id @default(cuid())
+  shop    String
+  badgeId String
+  badge   Badge  @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  type  String // DISCOUNT_PRODUCTS | ALL_PRODUCTS | SELECTED_PRODUCTS | SELECTED_COLLECTIONS | PRODUCT_TAGS | VENDOR | PRODUCT_TYPE | INVENTORY_BELOW | NEW_PRODUCTS | BEST_SELLING
+  value String? // JSON-encoded payload: id list, tag list, vendor name, or numeric threshold
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shop])
+  @@index([badgeId])
+}
+
+// Shop-wide ON/OFF toggle for each storefront surface badges can render on.
+model DisplayLocation {
+  id      String  @id @default(cuid())
+  shop    String
+  key     String // COLLECTION_CARDS | FEATURED_COLLECTION | PRODUCT_CARDS | ... (see app/types/locations.types.ts)
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shop, key])
+}
