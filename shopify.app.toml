@@ -2,7 +2,7 @@
 
 client_id = "8d8fe813d634a58812d81a22d3ad98ff"
 name = "engrasel-product-badge"
-application_url = "https://example.com"
+application_url = "https://product-badge-production.up.railway.app"
 embedded = true
 
 [access_scopes]
@@ -45,7 +45,7 @@ api_version = "2026-07"
   compliance_topics = [ "shop/redact" ]
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://product-badge-production.up.railway.app/auth/callback" ]
 
 [build]
 include_config_on_deploy = true
