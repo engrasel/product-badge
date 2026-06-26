@@ -86,7 +86,7 @@ export default function Dashboard() {
 
   return (
     <Page
-      title="Dashboard"
+      title="App Dashboard"
       primaryAction={{
         content: "Create Custom Badge",
         onAction: () => navigate("/app/badges/custom"),
