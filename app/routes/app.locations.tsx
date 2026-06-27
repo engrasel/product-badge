@@ -83,8 +83,14 @@ export default function DisplayLocations() {
   const pendingKey = fetcher.formData?.get("key")?.toString();
   const pendingValue = fetcher.formData?.get("enabled") === "true";
 
-  const isEnabled = (key: DisplayLocationKey) =>
-    pendingKey === key ? pendingValue : (enabledByKey[key] ?? true);
+  // A location can be "enabled" in storage from before the shop was on this
+  // plan (or before plans existed) — only show it as checked if the current
+  // plan can actually use it, so the checkboxes never lie about what's live
+  // on the storefront (see the matching live re-check in storefront.service.ts).
+  const isEnabled = (key: DisplayLocationKey) => {
+    const stored = pendingKey === key ? pendingValue : (enabledByKey[key] ?? true);
+    return stored && canUseLocation(plan, key);
+  };
 
   const toggle = (key: DisplayLocationKey, enabled: boolean) => {
     if (enabled && !canUseLocation(plan, key)) {

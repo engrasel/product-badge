@@ -2,8 +2,10 @@ import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 import { listBadges } from "./badge.service";
 import { listLocations } from "./displayLocation.service";
 import { ensureShopSettings } from "./shopSettings.service";
+import { getShopPlan } from "./plan.service";
 import { evaluateBadgeRules, type RuleCache } from "./ruleEvaluation.service";
 import { parseBadgeDisplayLocations } from "../utils/badgeDisplayLocations";
+import { canUseLocation } from "../utils/planLimits";
 import type { Badge, BadgeStyleInput } from "../types/badge.types";
 import type { DisplayRule } from "../types/rules.types";
 import type { DisplayLocationKey } from "../types/locations.types";
@@ -81,14 +83,19 @@ export async function getStorefrontConfig(
     return { enabled: false, locations: {}, badges: [] };
   }
 
-  const [locations, badges] = await Promise.all([
+  const [locations, badges, { plan }] = await Promise.all([
     listLocations(shop),
     listBadges(shop),
+    getShopPlan(shop),
   ]);
 
+  // The stored `enabled` flag is a shop-wide preference and doesn't know
+  // about plan — re-check live here so a Free shop can never serve badges on
+  // a Premium-only location, even if that location's row was seeded/left
+  // enabled from before the shop downgraded (or before plans existed at all).
   const locationMap: Record<string, boolean> = {};
   for (const location of locations) {
-    locationMap[location.key] = location.enabled;
+    locationMap[location.key] = location.enabled && canUseLocation(plan, location.key as DisplayLocationKey);
   }
 
   const now = new Date();
