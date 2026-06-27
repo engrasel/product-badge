@@ -382,30 +382,68 @@
     }
   }
 
+  // Diagnostic logging, opt-in via ?product_badges_debug=1 on any storefront
+  // URL — keeps production consoles quiet for shoppers while still giving
+  // merchants a way to see exactly why nothing rendered (proxy not deployed,
+  // app disabled, no display rule matched, etc.) without us having access to
+  // their store's console ourselves.
+  var DEBUG = /product_badges_debug=1/.test(window.location.search);
+  function debugLog() {
+    if (DEBUG && window.console && window.console.log) {
+      window.console.log.apply(window.console, ["[product-badges]"].concat(Array.prototype.slice.call(arguments)));
+    }
+  }
+
   function getConfig() {
     var cached = readCachedConfig();
     if (cached) {
+      debugLog("using cached config", cached);
       return Promise.resolve(cached);
     }
     return fetch(CONFIG_ENDPOINT, { credentials: "omit" })
       .then(function (response) {
-        return response.ok ? response.json() : null;
+        if (!response.ok) {
+          debugLog(
+            "storefront-config request failed with status " + response.status +
+              " — the App Proxy may not be deployed yet (run `shopify app deploy`), " +
+              "or the app isn't installed on this shop.",
+          );
+          return null;
+        }
+        return response.json();
       })
       .then(function (config) {
         if (config) {
           writeCachedConfig(config);
+          debugLog("loaded config", config);
         }
         return config;
+      })
+      .catch(function (error) {
+        debugLog("storefront-config request errored", error);
+        return null;
       });
   }
 
   function init() {
     getConfig()
       .then(function (config) {
-        if (!config || !config.enabled || !config.badges.length) {
+        if (!config) {
+          return;
+        }
+        if (!config.enabled) {
+          debugLog("app is disabled for this shop (Dashboard > App Status)");
+          return;
+        }
+        if (!config.badges.length) {
+          debugLog(
+            "app is enabled but no badge currently matches any product — check that a badge is " +
+              "Active and has a Display Rule that matches this product (Display Rules page).",
+          );
           return;
         }
 
+        debugLog(config.badges.length + " badge(s) eligible, locations:", config.locations);
         runInjection(config);
 
         // Many themes load recommendation rails (recently viewed, predictive
