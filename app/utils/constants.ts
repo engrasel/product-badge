@@ -34,15 +34,29 @@ export const DEFAULT_BADGE_STYLE: BadgeStyleInput = {
   offsetX: 0,
   offsetY: 0,
   customCss: null,
+  backgroundType: "SOLID",
+  gradientColor1: null,
+  gradientColor2: null,
+  priority: 0,
+  scheduleStart: null,
+  scheduleEnd: null,
+  timezone: null,
+  displayLocations: null,
+  customCssCode: null,
 };
 
 export const DEFAULT_DISPLAY_RULE_TYPE: DisplayRuleType = "DISCOUNT_PRODUCTS";
 
-export const BADGE_SHAPES: { value: BadgeShape; label: string }[] = [
+// First 4 are free (see FREE_SHAPES in plan.service.ts); the rest are Premium.
+export const BADGE_SHAPES: { value: BadgeShape; label: string; isPro?: boolean }[] = [
   { value: "RECTANGLE", label: "Rectangle" },
   { value: "ROUNDED", label: "Rounded" },
-  { value: "CIRCLE", label: "Circle" },
   { value: "RIBBON", label: "Ribbon" },
+  { value: "CIRCLE", label: "Circle" },
+  { value: "PILL", label: "Pill", isPro: true },
+  { value: "TAG", label: "Tag", isPro: true },
+  { value: "CORNER", label: "Corner", isPro: true },
+  { value: "OUTLINE", label: "Outline", isPro: true },
 ];
 
 export const BADGE_ANIMATIONS: { value: BadgeAnimation; label: string }[] = [
@@ -77,12 +91,14 @@ export const DISPLAY_RULE_TYPES: {
   { value: "INVENTORY_BELOW", label: "Inventory Below X", description: "Low-stock products" },
   { value: "NEW_PRODUCTS", label: "New Products", description: "Recently published products" },
   { value: "BEST_SELLING", label: "Best Selling Products", description: "Top-selling products" },
+  { value: "PRICE_ABOVE", label: "Price Above X", description: "Products priced above a threshold" },
 ];
 
-// The Badge Library catalog — 2 free templates (no upgrade required) and 12
-// Pro templates (locked behind the "Upgrade to Pro" prompt; no billing wired
-// up yet). Selecting a template seeds a new Badge row with these style values;
-// the merchant can then change anything in the Customizer.
+// The Badge Library catalog — 2 free templates (Sale, New) and 20 Premium
+// templates, per spec. Selecting a free template seeds a new Badge row with
+// these style values; the merchant can then change anything in the Wizard.
+// "Custom Badge" is special-cased by the Library page to start the blank
+// Customizer flow (createCustomBadge) instead of createBadgeFromTemplate.
 export const BADGE_TEMPLATES: BadgeTemplate[] = [
   { key: "sale", name: "Sale", isPro: false, preview: { text: "SALE", backgroundColor: "#FF3B30", textColor: "#FFFFFF", borderColor: "#FF3B30", shape: "RIBBON", animation: "NONE" } },
   { key: "new", name: "New", isPro: false, preview: { text: "NEW", backgroundColor: "#34C759", textColor: "#FFFFFF", borderColor: "#34C759", shape: "ROUNDED", animation: "NONE" } },
@@ -97,8 +113,16 @@ export const BADGE_TEMPLATES: BadgeTemplate[] = [
   { key: "black-friday", name: "Black Friday", isPro: true, preview: { text: "BLACK FRIDAY", backgroundColor: "#000000", textColor: "#FFFFFF", borderColor: "#FFD60A", shape: "RECTANGLE", animation: "NONE" } },
   { key: "cyber-monday", name: "Cyber Monday", isPro: true, preview: { text: "CYBER MONDAY", backgroundColor: "#0A84FF", textColor: "#FFFFFF", borderColor: "#0A84FF", shape: "RECTANGLE", animation: "NONE" } },
   { key: "summer-sale", name: "Summer Sale", isPro: true, preview: { text: "SUMMER SALE", backgroundColor: "#FF9F0A", textColor: "#FFFFFF", borderColor: "#FF9F0A", shape: "ROUNDED", animation: "NONE" } },
-  { key: "limited-time", name: "Limited Time", isPro: true, preview: { text: "LIMITED TIME", backgroundColor: "#5856D6", textColor: "#FFFFFF", borderColor: "#5856D6", shape: "ROUNDED", animation: "PULSE" } },
-  { key: "30-off", name: "30% OFF", isPro: true, preview: { text: "30% OFF", backgroundColor: "#FF3B30", textColor: "#FFFFFF", borderColor: "#FF3B30", shape: "CIRCLE", animation: "NONE" } },
+  { key: "christmas-sale", name: "Christmas Sale", isPro: true, preview: { text: "CHRISTMAS SALE", backgroundColor: "#D62828", textColor: "#FFFFFF", borderColor: "#2A9D5C", shape: "RIBBON", animation: "NONE" } },
+  { key: "deal", name: "Deal", isPro: true, preview: { text: "DEAL", backgroundColor: "#0A84FF", textColor: "#FFFFFF", borderColor: "#0A84FF", shape: "PILL", animation: "NONE" } },
+  { key: "featured", name: "Featured", isPro: true, preview: { text: "FEATURED", backgroundColor: "#5856D6", textColor: "#FFFFFF", borderColor: "#5856D6", shape: "TAG", animation: "NONE" } },
+  { key: "low-stock", name: "Low Stock", isPro: true, preview: { text: "LOW STOCK", backgroundColor: "#FF9500", textColor: "#FFFFFF", borderColor: "#FF9500", shape: "RECTANGLE", animation: "SHAKE" } },
+  { key: "new-arrival", name: "New Arrival", isPro: true, preview: { text: "NEW ARRIVAL", backgroundColor: "#34C759", textColor: "#FFFFFF", borderColor: "#34C759", shape: "CORNER", animation: "NONE" } },
+  { key: "staff-pick", name: "Staff Pick", isPro: true, preview: { text: "STAFF PICK", backgroundColor: "#1C1C1E", textColor: "#FFFFFF", borderColor: "#1C1C1E", shape: "PILL", animation: "NONE" } },
+  { key: "bestseller-ribbon", name: "Bestseller Ribbon", isPro: true, preview: { text: "BESTSELLER", backgroundColor: "#FFD60A", textColor: "#1C1C1E", borderColor: "#FFD60A", shape: "RIBBON", animation: "NONE" } },
+  { key: "limited-edition", name: "Limited Edition", isPro: true, preview: { text: "LIMITED EDITION", backgroundColor: "#5856D6", textColor: "#FFFFFF", borderColor: "#5856D6", shape: "OUTLINE", animation: "PULSE" } },
+  { key: "50-off", name: "50% OFF", isPro: true, preview: { text: "50% OFF", backgroundColor: "#FF3B30", textColor: "#FFFFFF", borderColor: "#FF3B30", shape: "CIRCLE", animation: "NONE" } },
+  { key: "custom-badge", name: "Custom Badge", isPro: true, preview: { text: "BADGE", backgroundColor: "#1C1C1E", textColor: "#FFFFFF", borderColor: "#1C1C1E", shape: "RECTANGLE", animation: "NONE" } },
 ];
 
 export type DisplayLocationCategory = "Collections" | "Products" | "Discovery" | "Homepage" | "Cart";

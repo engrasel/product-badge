@@ -4,12 +4,13 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { redirect, useNavigation, useSubmit } from "react-router";
+import { redirect, useLoaderData, useNavigation, useSubmit } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   Page,
   Card,
   BlockStack,
+  Banner,
   InlineGrid,
   InlineStack,
   TextField,
@@ -20,15 +21,26 @@ import {
 import { SearchIcon } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
-import { createBadgeFromTemplate } from "../services/badge.service";
+import { createBadgeFromTemplate, createCustomBadge, listBadges } from "../services/badge.service";
+import { getShopPlan } from "../services/plan.service";
+import { canUseTemplate, isAtFreeBadgeLimit } from "../utils/planLimits";
 import { BadgeCard } from "../components/badges/BadgeCard";
-import { UpgradeToProModal } from "../components/badges/UpgradeToProModal";
+import { UpgradeModal } from "../components/premium/UpgradeModal";
 import { BADGE_TEMPLATES } from "../utils/constants";
 import type { BadgeTemplate } from "../types/badge.types";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  return null;
+  const { session } = await authenticate.admin(request);
+  const [{ plan }, badges] = await Promise.all([
+    getShopPlan(session.shop),
+    listBadges(session.shop),
+  ]);
+  const activeBadgeCount = badges.filter((badge) => badge.isActive).length;
+
+  return {
+    plan,
+    atFreeLimit: isAtFreeBadgeLimit(plan, activeBadgeCount),
+  };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -36,7 +48,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const templateKey = String(formData.get("templateKey") ?? "");
 
-  const badge = await createBadgeFromTemplate(session.shop, templateKey);
+  // "Custom Badge" isn't a real style template — it starts the same blank
+  // Customizer flow as the "Create Badge" nav entry.
+  const badge =
+    templateKey === "custom-badge"
+      ? await createCustomBadge(session.shop)
+      : await createBadgeFromTemplate(session.shop, templateKey);
 
   return redirect(`/app/badges/${badge.id}`);
 };
@@ -48,12 +65,13 @@ const TABS: { id: "all" | "free" | "premium"; content: string }[] = [
 ];
 
 export default function BadgeLibrary() {
+  const { plan, atFreeLimit } = useLoaderData<typeof loader>();
   const submit = useSubmit();
   const navigation = useNavigation();
 
   const [query, setQuery] = useState("");
   const [tabIndex, setTabIndex] = useState(0);
-  const [upgradeTemplate, setUpgradeTemplate] = useState<BadgeTemplate | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const filteredTemplates = useMemo(() => {
     const tab = TABS[tabIndex].id;
@@ -71,8 +89,12 @@ export default function BadgeLibrary() {
     navigation.formData?.get("templateKey")?.toString();
 
   const handleSelect = (template: BadgeTemplate) => {
-    if (template.isPro) {
-      setUpgradeTemplate(template);
+    if (!canUseTemplate(plan, template.key, template.isPro)) {
+      setShowUpgradeModal(true);
+      return;
+    }
+    if (atFreeLimit) {
+      setShowUpgradeModal(true);
       return;
     }
     submit({ templateKey: template.key }, { method: "post" });
@@ -81,6 +103,12 @@ export default function BadgeLibrary() {
   return (
     <Page title="Badge Library">
       <BlockStack gap="400">
+        {atFreeLimit && (
+          <Banner tone="warning" title="You've reached the Free plan limit of 2 active badges">
+            <p>Upgrade to Premium for unlimited badges and every template.</p>
+          </Banner>
+        )}
+
         <Card>
           <BlockStack gap="400">
             <InlineStack gap="400" wrap={false} align="space-between" blockAlign="center">
@@ -115,6 +143,7 @@ export default function BadgeLibrary() {
                 key={template.key}
                 template={template}
                 loading={pendingTemplateKey === template.key}
+                locked={!canUseTemplate(plan, template.key, template.isPro)}
                 onSelect={handleSelect}
               />
             ))}
@@ -122,10 +151,7 @@ export default function BadgeLibrary() {
         )}
       </BlockStack>
 
-      <UpgradeToProModal
-        template={upgradeTemplate}
-        onClose={() => setUpgradeTemplate(null)}
-      />
+      <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
     </Page>
   );
 }

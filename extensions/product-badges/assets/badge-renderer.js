@@ -25,15 +25,28 @@
 
   // ---- cssFromBadgeStyle.ts port (kept in sync by hand) -------------------
 
+  // Mirrors CLIP_PATH_BY_SHAPE in app/utils/cssFromBadgeStyle.ts — kept in
+  // sync by hand, same as the rest of this file.
+  var CLIP_PATH_BY_SHAPE = {
+    RIBBON: "polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%)",
+    TAG: "polygon(15% 0%, 100% 0%, 100% 100%, 15% 100%, 0% 50%)",
+    CORNER: "polygon(0% 0%, 100% 0%, 0% 100%)",
+  };
+
   function badgeContainerDeclarations(style) {
     var isCircle = style.shape === "CIRCLE";
+    var isOutline = style.shape === "OUTLINE";
+    var isGradient = style.backgroundType === "GRADIENT" && style.gradientColor1 && style.gradientColor2;
     var circleSize = style.width || style.height || 32;
 
     var declarations = {
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: style.backgroundColor,
+      backgroundColor: isOutline ? "transparent" : isGradient ? "" : style.backgroundColor,
+      backgroundImage: isGradient
+        ? "linear-gradient(135deg, " + style.gradientColor1 + ", " + style.gradientColor2 + ")"
+        : "",
       border: "1px solid " + style.borderColor,
       opacity: String(style.opacity / 100),
       boxShadow: style.shadow ? "0 2px 6px rgba(0, 0, 0, 0.25)" : "",
@@ -45,12 +58,14 @@
 
     if (style.shape === "CIRCLE") {
       declarations.borderRadius = "50%";
-    } else if (style.shape === "RECTANGLE") {
+    } else if (style.shape === "PILL") {
+      declarations.borderRadius = "999px";
+    } else if (style.shape === "RECTANGLE" || style.shape === "OUTLINE") {
       declarations.borderRadius = "0";
     } else if (style.shape === "ROUNDED") {
       declarations.borderRadius = style.borderRadius + "px";
-    } else if (style.shape === "RIBBON") {
-      declarations.clipPath = "polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%)";
+    } else if (CLIP_PATH_BY_SHAPE[style.shape]) {
+      declarations.clipPath = CLIP_PATH_BY_SHAPE[style.shape];
     }
 
     return declarations;
@@ -97,8 +112,26 @@
     }
   }
 
+  var customCssInjected = {};
+
+  // Injects a badge's raw custom CSS (Premium "Custom CSS" textarea) exactly
+  // once per badge id, scoped to that badge's own wrapper class so one
+  // badge's CSS can never leak onto another.
+  function injectCustomCss(badgeId, scopeClassName, cssText) {
+    if (!cssText || customCssInjected[badgeId]) {
+      return;
+    }
+    customCssInjected[badgeId] = true;
+    var styleEl = document.createElement("style");
+    styleEl.setAttribute("data-product-badges-custom-css", badgeId);
+    styleEl.textContent = "." + scopeClassName + " { " + cssText + " }";
+    document.head.appendChild(styleEl);
+  }
+
   function buildBadgeElement(badge) {
     var style = badge.style;
+    var isOutline = style.shape === "OUTLINE";
+    var scopeClassName = "product-badge-" + badge.id;
 
     var anchor = document.createElement("div");
     applyDeclarations(anchor, positionDeclarations(style.position, style.offsetX, style.offsetY));
@@ -106,13 +139,12 @@
 
     var container = document.createElement("div");
     applyDeclarations(container, badgeContainerDeclarations(style));
-    if (style.customCss) {
-      container.className = style.customCss;
-    }
+    container.className = scopeClassName + (style.customCss ? " " + style.customCss : "");
+    injectCustomCss(badge.id, scopeClassName, style.customCssCode);
 
     var text = document.createElement("span");
     text.textContent = style.text;
-    text.style.color = style.textColor;
+    text.style.color = isOutline ? style.borderColor : style.textColor;
     text.style.fontSize = style.fontSize + "px";
     text.style.fontWeight = style.fontWeight;
     text.style.lineHeight = "1";
@@ -129,9 +161,27 @@
 
   // ---- Badge resolution -----------------------------------------------
 
-  function pickBadgeForHandle(config, handle) {
+  // `badge.locations` is null when the badge allows every shop-enabled
+  // location (default); otherwise it's an explicit allow-list that must
+  // overlap with the location(s) relevant to the current DOM context.
+  function badgeAllowsAnyLocation(badge, locationKeys) {
+    if (!badge.locations) {
+      return true;
+    }
+    for (var i = 0; i < locationKeys.length; i++) {
+      if (badge.locations.indexOf(locationKeys[i]) !== -1) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function pickBadgeForHandle(config, handle, locationKeys) {
     for (var i = 0; i < config.badges.length; i++) {
       var badge = config.badges[i];
+      if (!badgeAllowsAnyLocation(badge, locationKeys)) {
+        continue;
+      }
       if (badge.matchesAllProducts || badge.productHandles.indexOf(handle) !== -1) {
         return badge;
       }
@@ -191,7 +241,7 @@
     var anchors = document.querySelectorAll('[data-product-badges-target="product-detail-page"]');
     anchors.forEach(function (anchor) {
       var handle = anchor.getAttribute("data-product-handle");
-      var badge = handle ? pickBadgeForHandle(config, handle) : null;
+      var badge = handle ? pickBadgeForHandle(config, handle, ["PRODUCT_DETAIL_PAGE"]) : null;
       if (badge) {
         injectBadge(anchor, badge);
       }
@@ -210,7 +260,7 @@
       if (!match) {
         return;
       }
-      var badge = pickBadgeForHandle(config, match[1]);
+      var badge = pickBadgeForHandle(config, match[1], contextKeys);
       if (!badge) {
         return;
       }

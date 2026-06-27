@@ -2,12 +2,16 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import prisma from "../db.server";
 import { createCustomBadge } from "./badge.service";
 import { deleteRule, upsertRule } from "./displayRule.service";
+import { setShopFree, setShopPremium } from "./plan.service";
 
 const shop = "vitest-fixture-rules.myshopify.com";
 const otherShop = "vitest-fixture-rules-other.myshopify.com";
 
 beforeEach(async () => {
   await prisma.badge.deleteMany({ where: { shop: { in: [shop, otherShop] } } });
+  // createCustomBadge is Premium-only; these tests are about rule storage,
+  // not plan gating, so put the fixture shop on Premium up front.
+  await setShopPremium(shop, { chargeId: "test-charge" });
 });
 
 afterEach(async () => {
@@ -37,6 +41,14 @@ describe("displayRule.service", () => {
   it("upsertRule rejects badges that don't belong to the given shop", async () => {
     const badge = await createCustomBadge(shop);
     await expect(upsertRule(otherShop, badge.id, "ALL_PRODUCTS")).rejects.toThrow();
+  });
+
+  it("upsertRule rejects Premium-only rule types on the Free plan", async () => {
+    const badge = await createCustomBadge(shop);
+    await setShopFree(shop);
+
+    await expect(upsertRule(shop, badge.id, "PRODUCT_TAGS", { tags: ["sale"] })).rejects.toThrow();
+    await expect(upsertRule(shop, badge.id, "ALL_PRODUCTS")).resolves.toBeDefined();
   });
 
   it("deleteRule is scoped to the given shop", async () => {

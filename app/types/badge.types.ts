@@ -1,7 +1,17 @@
 // Domain types for a Badge. SQLite/Prisma stores the unions below as plain strings;
 // these types are the single source of truth for what values are valid app-wide.
 
-export type BadgeShape = "RECTANGLE" | "ROUNDED" | "CIRCLE" | "RIBBON";
+// RECTANGLE/ROUNDED/CIRCLE/RIBBON are free; PILL/TAG/CORNER/OUTLINE are premium
+// (see FREE_SHAPES in plan.service.ts).
+export type BadgeShape =
+  | "RECTANGLE"
+  | "ROUNDED"
+  | "CIRCLE"
+  | "RIBBON"
+  | "PILL"
+  | "TAG"
+  | "CORNER"
+  | "OUTLINE";
 
 export type BadgeAnimation = "NONE" | "PULSE" | "BOUNCE" | "FADE" | "SHAKE";
 
@@ -12,6 +22,8 @@ export type BadgePosition =
   | "BOTTOM_RIGHT"
   | "CENTER"
   | "CUSTOM";
+
+export type BadgeBackgroundType = "SOLID" | "GRADIENT";
 
 // Mirrors the Prisma Badge model as a plain object for use outside the DB layer
 // (components, services, the live preview, and the storefront renderer).
@@ -42,6 +54,20 @@ export interface Badge {
   offsetX: number;
   offsetY: number;
   customCss: string | null;
+
+  // Premium design/display extensions — always re-validated against the
+  // shop's live plan server-side; never assume these are honored for a free shop.
+  backgroundType: BadgeBackgroundType;
+  gradientColor1: string | null;
+  gradientColor2: string | null;
+  priority: number;
+  scheduleStart: Date | null;
+  scheduleEnd: Date | null;
+  timezone: string | null;
+  /** JSON-encoded DisplayLocationKey[]; null means "all shop-enabled locations". */
+  displayLocations: string | null;
+  /** Raw CSS text injected as a scoped <style> tag on the storefront. */
+  customCssCode: string | null;
 
   createdAt: Date;
   updatedAt: Date;

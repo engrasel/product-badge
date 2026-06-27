@@ -30,11 +30,18 @@ model Session {
   refreshTokenExpires DateTime?
 }
 
-// Per-shop master switch and app-level state. One row per installed shop.
+// Per-shop master switch, plan, and billing state. One row per installed shop.
 model ShopSettings {
   id        String   @id @default(cuid())
   shop      String   @unique
   isEnabled Boolean  @default(true)
+
+  // Plan/billing — synced from Shopify Billing (authenticate.admin().billing),
+  // never set permanently client-side. "FREE" | "PREMIUM".
+  plan               String    @default("FREE")
+  subscriptionStatus String    @default("INACTIVE")
+  chargeId           String?
+  currentPeriodEnd   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -70,6 +77,18 @@ model Badge {
   offsetX         Int      @default(0)
   offsetY         Int      @default(0)
   customCss       String?
+
+  // Premium design/display extensions — always re-validated against the
+  // shop's live plan in badge.service.updateBadge, never trusted as-is.
+  backgroundType    String    @default("SOLID") // SOLID | GRADIENT
+  gradientColor1    String?
+  gradientColor2    String?
+  priority          Int       @default(0) // higher wins when multiple badges match a product
+  scheduleStart     DateTime?
+  scheduleEnd       DateTime?
+  timezone          String?
+  displayLocations  String? // JSON array of DisplayLocationKey; null = all shop-enabled locations
+  customCssCode     String? // raw CSS text injected as a scoped <style> tag (premium)
 
   rules     DisplayRule[]
 

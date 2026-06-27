@@ -127,6 +127,16 @@ describe("evaluateRule", () => {
     expect(capturedQuery).toBe("inventory_total:<5");
   });
 
+  it("PRICE_ABOVE queries variants.price:>amount", async () => {
+    let capturedQuery = "";
+    const admin = fakeAdmin((_q, variables) => {
+      capturedQuery = String(variables.query);
+      return { products: { nodes: [] } };
+    });
+    await evaluateRule(admin, rule("PRICE_ABOVE", { amount: 50 }));
+    expect(capturedQuery).toBe("variants.price:>50");
+  });
+
   it("NEW_PRODUCTS queries created_at against a cutoff derived from withinDays", async () => {
     let capturedQuery = "";
     const admin = fakeAdmin((_q, variables) => {

@@ -32,7 +32,8 @@ type BadgeStyleSubset = Pick<
   | "height"
   | "shape"
   | "animation"
->;
+> &
+  Partial<Pick<BadgeStyleInput, "backgroundType" | "gradientColor1" | "gradientColor2">>;
 
 /**
  * Single source of truth for turning a badge's stored style fields into renderable
@@ -44,15 +45,28 @@ type BadgeStyleSubset = Pick<
  * `transform: rotate()` fighting with the transform-based keyframes used by the
  * pulse/bounce/shake animations.
  */
+// Tag/Corner reuse a clipPath notch like Ribbon; Pill is just a very large
+// border-radius; Outline drops the fill and lets the border/text carry it.
+const CLIP_PATH_BY_SHAPE: Partial<Record<BadgeStyleSubset["shape"], string>> = {
+  RIBBON: "polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%)",
+  TAG: "polygon(15% 0%, 100% 0%, 100% 100%, 15% 100%, 0% 50%)",
+  CORNER: "polygon(0% 0%, 100% 0%, 0% 100%)",
+};
+
 export function cssFromBadgeStyle(badge: BadgeStyleSubset): BadgeCssResult {
   const isCircle = badge.shape === "CIRCLE";
   const circleSize = badge.width ?? badge.height ?? 32;
+  const isOutline = badge.shape === "OUTLINE";
+  const isGradient = badge.backgroundType === "GRADIENT" && badge.gradientColor1 && badge.gradientColor2;
 
   const containerStyle: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: badge.backgroundColor,
+    backgroundColor: isOutline ? "transparent" : isGradient ? undefined : badge.backgroundColor,
+    backgroundImage: isGradient
+      ? `linear-gradient(135deg, ${badge.gradientColor1}, ${badge.gradientColor2})`
+      : undefined,
     border: `1px solid ${badge.borderColor}`,
     opacity: badge.opacity / 100,
     transform: badge.rotation ? `rotate(${badge.rotation}deg)` : undefined,
@@ -63,19 +77,18 @@ export function cssFromBadgeStyle(badge: BadgeStyleSubset): BadgeCssResult {
     borderRadius:
       badge.shape === "CIRCLE"
         ? "50%"
-        : badge.shape === "RECTANGLE"
-          ? 0
-          : badge.shape === "ROUNDED"
-            ? badge.borderRadius
-            : undefined, // RIBBON shape uses clipPath below instead of a border-radius
-    clipPath:
-      badge.shape === "RIBBON"
-        ? "polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%)"
-        : undefined,
+        : badge.shape === "PILL"
+          ? "999px"
+          : badge.shape === "RECTANGLE" || badge.shape === "OUTLINE"
+            ? 0
+            : badge.shape === "ROUNDED"
+              ? badge.borderRadius
+              : undefined, // RIBBON/TAG/CORNER use clipPath below instead of a border-radius
+    clipPath: CLIP_PATH_BY_SHAPE[badge.shape],
   };
 
   const textStyle: CSSProperties = {
-    color: badge.textColor,
+    color: isOutline ? badge.borderColor : badge.textColor,
     fontSize: badge.fontSize,
     fontWeight: badge.fontWeight as CSSProperties["fontWeight"],
     lineHeight: 1,

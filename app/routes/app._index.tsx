@@ -23,7 +23,8 @@ import {
 import { authenticate } from "../shopify.server";
 import { ensureShopSettings, setShopEnabled } from "../services/shopSettings.service";
 import { ensureDefaultLocations, listLocations } from "../services/displayLocation.service";
-import { ensureDefaultBadge, listBadges } from "../services/badge.service";
+import { ensureDefaultBadge, listBadges, updateBadge } from "../services/badge.service";
+import { getShopPlan } from "../services/plan.service";
 import { BadgePreview } from "../components/badges/BadgePreview";
 import { DISPLAY_RULE_TYPES } from "../utils/constants";
 
@@ -35,10 +36,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // touch unrelated tables, so they run in parallel rather than sequentially.
   await Promise.all([ensureDefaultBadge(shop), ensureDefaultLocations(shop)]);
 
-  const [settings, badges, locations] = await Promise.all([
+  const [settings, badges, locations, plan] = await Promise.all([
     ensureShopSettings(shop),
     listBadges(shop),
     listLocations(shop),
+    getShopPlan(shop),
   ]);
 
   return {
@@ -47,27 +49,45 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     activeBadgeCount: badges.filter((badge) => badge.isActive).length,
     enabledLocationCount: locations.filter((location) => location.enabled).length,
     totalLocationCount: locations.length,
+    plan: plan.plan,
+    isPremium: plan.isPremium,
   };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
-  const isEnabled = formData.get("isEnabled") === "true";
+  const intent = formData.get("intent");
 
+  if (intent === "toggleBadgeActive") {
+    const id = String(formData.get("id"));
+    const isActive = formData.get("isActive") === "true";
+    await updateBadge(session.shop, id, { isActive });
+    return { ok: true };
+  }
+
+  const isEnabled = formData.get("isEnabled") === "true";
   await setShopEnabled(session.shop, isEnabled);
 
   return { ok: true, isEnabled };
 };
 
 export default function Dashboard() {
-  const { isEnabled, badges, activeBadgeCount, enabledLocationCount, totalLocationCount } =
-    useLoaderData<typeof loader>();
+  const {
+    isEnabled,
+    badges,
+    activeBadgeCount,
+    enabledLocationCount,
+    totalLocationCount,
+    plan,
+    isPremium,
+  } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
 
-  const isToggling = fetcher.state !== "idle";
+  const isToggling =
+    fetcher.state !== "idle" && fetcher.formData?.get("intent") !== "toggleBadgeActive";
   // Reflects the in-flight toggle immediately rather than waiting on the
   // round trip, falling back to the last-loaded value once settled.
   const displayIsEnabled = isToggling
@@ -84,17 +104,24 @@ export default function Dashboard() {
     fetcher.submit({ isEnabled: String(!displayIsEnabled) }, { method: "post" });
   };
 
+  const toggleBadgeActive = (id: string, nextActive: boolean) => {
+    fetcher.submit(
+      { intent: "toggleBadgeActive", id, isActive: String(nextActive) },
+      { method: "post" },
+    );
+  };
+
   return (
     <Page
       title="App Dashboard"
       primaryAction={{
-        content: "Create Custom Badge",
+        content: "Create Badge",
         onAction: () => navigate("/app/badges/custom"),
       }}
     >
       <Layout>
         <Layout.Section>
-          <InlineGrid columns={{ xs: 1, sm: 3 }} gap="400">
+          <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
             <Card>
               <BlockStack gap="200">
                 <Text as="h3" variant="headingSm" tone="subdued">
@@ -107,6 +134,24 @@ export default function Dashboard() {
                   <Button onClick={toggleEnabled} loading={isToggling} size="slim">
                     {displayIsEnabled ? "Disable" : "Enable"}
                   </Button>
+                </InlineStack>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="200">
+                <Text as="h3" variant="headingSm" tone="subdued">
+                  Current Plan
+                </Text>
+                <InlineStack align="space-between" blockAlign="center">
+                  <StatusBadge tone={isPremium ? "warning" : "success"}>
+                    {plan === "PREMIUM" ? "Premium" : "Free"}
+                  </StatusBadge>
+                  {!isPremium && (
+                    <Button onClick={() => navigate("/app/billing")} size="slim" variant="primary">
+                      Upgrade
+                    </Button>
+                  )}
                 </InlineStack>
               </BlockStack>
             </Card>
@@ -178,9 +223,17 @@ export default function Dashboard() {
                             </Text>
                           </BlockStack>
                         </InlineStack>
-                        <StatusBadge tone={badge.isActive ? "success" : undefined}>
-                          {badge.isActive ? "Active" : "Inactive"}
-                        </StatusBadge>
+                        <InlineStack gap="200" blockAlign="center">
+                          <StatusBadge tone={badge.isActive ? "success" : undefined}>
+                            {badge.isActive ? "Active" : "Inactive"}
+                          </StatusBadge>
+                          <Button size="slim" onClick={() => navigate(`/app/badges/${badge.id}`)}>
+                            Edit
+                          </Button>
+                          <Button size="slim" onClick={() => toggleBadgeActive(badge.id, !badge.isActive)}>
+                            {badge.isActive ? "Disable" : "Enable"}
+                          </Button>
+                        </InlineStack>
                       </InlineStack>
                     );
                   })}
@@ -200,7 +253,7 @@ export default function Dashboard() {
                 Badge Library
               </Button>
               <Button onClick={() => navigate("/app/badges/custom")} fullWidth textAlign="left">
-                Create Custom Badge
+                Create Badge
               </Button>
               <Button onClick={() => navigate("/app/rules")} fullWidth textAlign="left">
                 Display Rules
@@ -208,6 +261,11 @@ export default function Dashboard() {
               <Button onClick={() => navigate("/app/locations")} fullWidth textAlign="left">
                 Display Locations
               </Button>
+              {!isPremium && (
+                <Button onClick={() => navigate("/app/billing")} fullWidth textAlign="left" variant="primary">
+                  Upgrade to Premium
+                </Button>
+              )}
             </BlockStack>
           </Card>
         </Layout.Section>

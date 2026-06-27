@@ -21,15 +21,20 @@ import {
 import { authenticate } from "../shopify.server";
 import { listBadges } from "../services/badge.service";
 import { deleteRule, upsertRule } from "../services/displayRule.service";
+import { getShopPlan } from "../services/plan.service";
 import { BadgePreview } from "../components/badges/BadgePreview";
 import { RuleEditorModal } from "../components/rules/RuleEditorModal";
+import { UpgradeModal } from "../components/premium/UpgradeModal";
 import { formatRuleSummary } from "../utils/formatRule";
 import type { DisplayRuleType } from "../types/rules.types";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const badges = await listBadges(session.shop);
-  return { badges };
+  const [badges, { plan }] = await Promise.all([
+    listBadges(session.shop),
+    getShopPlan(session.shop),
+  ]);
+  return { badges, plan };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -52,11 +57,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function DisplayRules() {
-  const { badges } = useLoaderData<typeof loader>();
+  const { badges, plan } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
   const [editingBadgeId, setEditingBadgeId] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     if (fetcher.data?.ok) {
@@ -136,8 +142,12 @@ export default function DisplayRules() {
           onClose={() => setEditingBadgeId(null)}
           onSave={handleSaveRule}
           saving={fetcher.state !== "idle"}
+          plan={plan}
+          onLockedSelect={() => setShowUpgradeModal(true)}
         />
       )}
+
+      <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
     </Page>
   );
 }

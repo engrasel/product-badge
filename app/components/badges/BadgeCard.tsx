@@ -6,13 +6,15 @@ import type { BadgeTemplate } from "../../types/badge.types";
 type BadgeCardProps = {
   template: BadgeTemplate;
   loading?: boolean;
+  /** Whether this card is unavailable on the shop's current plan. */
+  locked?: boolean;
   onSelect: (template: BadgeTemplate) => void;
 };
 
 // One card in the Badge Library grid — preview, name, Free/Premium label, and
-// a Select button. Premium templates show a lock icon; selecting one opens the
-// "Upgrade to Pro" prompt instead of creating a badge (handled by the caller).
-export function BadgeCard({ template, loading, onSelect }: BadgeCardProps) {
+// a Select button. Locked templates show a lock icon; selecting one opens the
+// Upgrade modal instead of creating a badge (handled by the caller).
+export function BadgeCard({ template, loading, locked, onSelect }: BadgeCardProps) {
   return (
     <Box
       background="bg-surface"
@@ -57,7 +59,7 @@ export function BadgeCard({ template, loading, onSelect }: BadgeCardProps) {
           </Text>
           {template.isPro ? (
             <InlineStack gap="100" blockAlign="center">
-              <Icon source={LockIcon} tone="subdued" />
+              {locked && <Icon source={LockIcon} tone="subdued" />}
               <StatusBadge tone="warning">Premium</StatusBadge>
             </InlineStack>
           ) : (

@@ -11,6 +11,7 @@ import {
 } from "@shopify/polaris";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { DISPLAY_RULE_TYPES } from "../../utils/constants";
+import { canUseRuleType, type Plan } from "../../utils/planLimits";
 import type { DisplayRuleType } from "../../types/rules.types";
 
 type Picked = { id: string; title: string };
@@ -21,6 +22,9 @@ type RuleEditorModalProps = {
   onClose: () => void;
   onSave: (type: DisplayRuleType, value: unknown) => void;
   saving?: boolean;
+  /** Defaults to PREMIUM (no gating) so existing call sites are unaffected. */
+  plan?: Plan;
+  onLockedSelect?: () => void;
 };
 
 const NO_VALUE_TYPES: DisplayRuleType[] = ["ALL_PRODUCTS", "DISCOUNT_PRODUCTS", "BEST_SELLING"];
@@ -40,6 +44,8 @@ export function RuleEditorModal({
   onClose,
   onSave,
   saving,
+  plan = "PREMIUM",
+  onLockedSelect,
 }: RuleEditorModalProps) {
   const shopify = useAppBridge();
   const [type, setType] = useState<DisplayRuleType>("ALL_PRODUCTS");
@@ -50,14 +56,27 @@ export function RuleEditorModal({
   const [productTypesText, setProductTypesText] = useState("");
   const [threshold, setThreshold] = useState("5");
   const [withinDays, setWithinDays] = useState("30");
+  const [priceAmount, setPriceAmount] = useState("50");
 
-  const typeOptions = DISPLAY_RULE_TYPES.map((entry) => ({
-    value: entry.value,
-    label:
-      existingTypes.includes(entry.value) && entry.value !== type
-        ? `${entry.label} (already set — will be replaced)`
-        : entry.label,
-  }));
+  const typeOptions = DISPLAY_RULE_TYPES.map((entry) => {
+    const locked = !canUseRuleType(plan, entry.value);
+    const alreadySet = existingTypes.includes(entry.value) && entry.value !== type;
+    return {
+      value: entry.value,
+      label: [entry.label, locked && "🔒 Premium", alreadySet && "(already set — will be replaced)"]
+        .filter(Boolean)
+        .join(" "),
+    };
+  });
+
+  const handleTypeChange = (value: string) => {
+    const nextType = value as DisplayRuleType;
+    if (!canUseRuleType(plan, nextType)) {
+      onLockedSelect?.();
+      return;
+    }
+    setType(nextType);
+  };
 
   const pickProducts = async () => {
     const selected = await shopify.resourcePicker({
@@ -115,6 +134,9 @@ export function RuleEditorModal({
       case "NEW_PRODUCTS":
         onSave(type, { withinDays: Number(withinDays) || 30 });
         return;
+      case "PRICE_ABOVE":
+        onSave(type, { amount: Number(priceAmount) || 0 });
+        return;
     }
   };
 
@@ -144,7 +166,7 @@ export function RuleEditorModal({
             label="Condition"
             options={typeOptions}
             value={type}
-            onChange={(value) => setType(value as DisplayRuleType)}
+            onChange={handleTypeChange}
           />
 
           {type === "SELECTED_PRODUCTS" && (
@@ -233,6 +255,17 @@ export function RuleEditorModal({
               onChange={setWithinDays}
               autoComplete="off"
               suffix="days"
+            />
+          )}
+
+          {type === "PRICE_ABOVE" && (
+            <TextField
+              label="Price greater than"
+              type="number"
+              value={priceAmount}
+              onChange={setPriceAmount}
+              autoComplete="off"
+              prefix="$"
             />
           )}
 

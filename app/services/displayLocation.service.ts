@@ -1,5 +1,8 @@
 import prisma from "../db.server";
 import { DISPLAY_LOCATIONS } from "../utils/constants";
+import { getShopPlan } from "./plan.service";
+import { canUseLocation } from "../utils/planLimits";
+import type { DisplayLocationKey } from "../types/locations.types";
 
 export async function listLocations(shop: string) {
   return prisma.displayLocation.findMany({ where: { shop } });
@@ -39,6 +42,13 @@ export async function setLocationEnabled(
   key: string,
   enabled: boolean,
 ) {
+  if (enabled) {
+    const { plan } = await getShopPlan(shop);
+    if (!canUseLocation(plan, key as DisplayLocationKey)) {
+      throw new Error(`"${key}" is a Premium display location and cannot be enabled on the Free plan`);
+    }
+  }
+
   return prisma.displayLocation.update({
     where: { shop_key: { shop, key } },
     data: { enabled },

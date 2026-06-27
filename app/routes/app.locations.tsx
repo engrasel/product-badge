@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
@@ -24,6 +24,10 @@ import {
   listLocations,
   setLocationEnabled,
 } from "../services/displayLocation.service";
+import { getShopPlan } from "../services/plan.service";
+import { canUseLocation } from "../utils/planLimits";
+import { UpgradeModal } from "../components/premium/UpgradeModal";
+import { PremiumLock } from "../components/premium/PremiumLock";
 import {
   DISPLAY_LOCATIONS,
   type DisplayLocationCategory,
@@ -33,14 +37,17 @@ import type { DisplayLocationKey } from "../types/locations.types";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   await ensureDefaultLocations(session.shop);
-  const locations = await listLocations(session.shop);
+  const [locations, { plan }] = await Promise.all([
+    listLocations(session.shop),
+    getShopPlan(session.shop),
+  ]);
 
   const enabledByKey: Record<string, boolean> = {};
   for (const location of locations) {
     enabledByKey[location.key] = location.enabled;
   }
 
-  return { enabledByKey };
+  return { enabledByKey, plan };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -62,9 +69,10 @@ const CATEGORIES: DisplayLocationCategory[] = [
 ];
 
 export default function DisplayLocations() {
-  const { enabledByKey } = useLoaderData<typeof loader>();
+  const { enabledByKey, plan } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     if (fetcher.data?.ok) {
@@ -79,6 +87,10 @@ export default function DisplayLocations() {
     pendingKey === key ? pendingValue : (enabledByKey[key] ?? true);
 
   const toggle = (key: DisplayLocationKey, enabled: boolean) => {
+    if (enabled && !canUseLocation(plan, key)) {
+      setShowUpgradeModal(true);
+      return;
+    }
     fetcher.submit({ key, enabled: String(enabled) }, { method: "post" });
   };
 
@@ -95,21 +107,27 @@ export default function DisplayLocations() {
                   </Text>
                   <BlockStack gap="200">
                     {DISPLAY_LOCATIONS.filter((location) => location.category === category).map(
-                      (location) => (
-                        <InlineStack
-                          key={location.value}
-                          align="space-between"
-                          blockAlign="center"
-                        >
-                          <Checkbox
-                            label={location.label}
-                            checked={isEnabled(location.value)}
-                            disabled={location.comingSoon}
-                            onChange={(checked) => toggle(location.value, checked)}
-                          />
-                          {location.comingSoon && <StatusBadge>Coming soon</StatusBadge>}
-                        </InlineStack>
-                      ),
+                      (location) => {
+                        const locked = !canUseLocation(plan, location.value);
+                        return (
+                          <InlineStack
+                            key={location.value}
+                            align="space-between"
+                            blockAlign="center"
+                          >
+                            <Checkbox
+                              label={location.label}
+                              checked={isEnabled(location.value)}
+                              disabled={location.comingSoon}
+                              onChange={(checked) => toggle(location.value, checked)}
+                            />
+                            <InlineStack gap="200">
+                              {locked && <PremiumLock />}
+                              {location.comingSoon && <StatusBadge>Coming soon</StatusBadge>}
+                            </InlineStack>
+                          </InlineStack>
+                        );
+                      },
                     )}
                   </BlockStack>
                 </BlockStack>
@@ -134,6 +152,8 @@ export default function DisplayLocations() {
           </Card>
         </Layout.Section>
       </Layout>
+
+      <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
     </Page>
   );
 }

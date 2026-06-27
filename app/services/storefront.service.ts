@@ -3,8 +3,10 @@ import { listBadges } from "./badge.service";
 import { listLocations } from "./displayLocation.service";
 import { ensureShopSettings } from "./shopSettings.service";
 import { evaluateBadgeRules, type RuleCache } from "./ruleEvaluation.service";
+import { parseBadgeDisplayLocations } from "../utils/badgeDisplayLocations";
 import type { Badge, BadgeStyleInput } from "../types/badge.types";
 import type { DisplayRule } from "../types/rules.types";
+import type { DisplayLocationKey } from "../types/locations.types";
 
 type AdminContext = AdminApiContext;
 
@@ -13,6 +15,14 @@ export interface StorefrontBadge {
   style: BadgeStyleInput;
   matchesAllProducts: boolean;
   productHandles: string[];
+  /** null means "every shop-enabled location" (see Badge.displayLocations). */
+  locations: DisplayLocationKey[] | null;
+}
+
+function isWithinSchedule(badge: Badge, now: Date): boolean {
+  if (badge.scheduleStart && now < badge.scheduleStart) return false;
+  if (badge.scheduleEnd && now > badge.scheduleEnd) return false;
+  return true;
 }
 
 export interface StorefrontConfig {
@@ -46,6 +56,15 @@ function toStyleInput(badge: Badge): BadgeStyleInput {
     offsetX: badge.offsetX,
     offsetY: badge.offsetY,
     customCss: badge.customCss,
+    backgroundType: badge.backgroundType,
+    gradientColor1: badge.gradientColor1,
+    gradientColor2: badge.gradientColor2,
+    priority: badge.priority,
+    scheduleStart: badge.scheduleStart,
+    scheduleEnd: badge.scheduleEnd,
+    timezone: badge.timezone,
+    displayLocations: badge.displayLocations,
+    customCssCode: badge.customCssCode,
   };
 }
 
@@ -72,9 +91,12 @@ export async function getStorefrontConfig(
     locationMap[location.key] = location.enabled;
   }
 
-  const activeBadges = badges.filter(
-    (badge) => badge.isActive && badge.rules.length > 0,
-  );
+  const now = new Date();
+  const activeBadges = badges
+    .filter((badge) => badge.isActive && badge.rules.length > 0 && isWithinSchedule(badge, now))
+    // Higher priority wins when multiple badges match the same product —
+    // the storefront renderer picks the first match in array order.
+    .sort((a, b) => b.priority - a.priority || a.createdAt.getTime() - b.createdAt.getTime());
 
   // Shared across every badge in this request: two badges referencing the
   // same rule (identical type + value) hit the Admin API once between them.
@@ -95,6 +117,7 @@ export async function getStorefrontConfig(
         style: toStyleInput(badge),
         matchesAllProducts: evaluation.matchesAll,
         productHandles: evaluation.matchesAll ? [] : [...evaluation.handles],
+        locations: parseBadgeDisplayLocations(badge.displayLocations),
       };
     }),
   );

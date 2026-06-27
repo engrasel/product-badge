@@ -283,6 +283,15 @@ async function evaluateRuleUncached(
 
     case "BEST_SELLING":
       return { matchesAll: false, handles: await fetchBestSellingHandles(admin) };
+
+    case "PRICE_ABOVE": {
+      const value = parseValue<RuleValueByType["PRICE_ABOVE"]>(rule.value);
+      const amount = value?.amount ?? 0;
+      return {
+        matchesAll: false,
+        handles: await fetchHandlesByQuery(admin, `variants.price:>${amount}`),
+      };
+    }
   }
 }
 

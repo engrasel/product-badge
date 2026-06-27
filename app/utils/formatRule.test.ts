@@ -44,6 +44,7 @@ describe("formatRuleSummary", () => {
     expect(formatRuleSummary(rule("NEW_PRODUCTS", { withinDays: 30 }))).toBe(
       "New Products: within 30 days",
     );
+    expect(formatRuleSummary(rule("PRICE_ABOVE", { amount: 50 }))).toBe("Price Above X: > $50");
   });
 
   it("falls back to the label if the stored value is malformed JSON", () => {

@@ -20,10 +20,11 @@ type BadgePreviewProps = {
     | "height"
     | "shape"
     | "animation"
-  > & {
-    /** Future-ready hook: an optional merchant-supplied class for theme-level CSS overrides. */
-    customCss?: string | null;
-  };
+  > &
+    Partial<Pick<BadgeStyleInput, "backgroundType" | "gradientColor1" | "gradientColor2">> & {
+      /** Future-ready hook: an optional merchant-supplied class for theme-level CSS overrides. */
+      customCss?: string | null;
+    };
 };
 
 // Renders a badge exactly as cssFromBadgeStyle describes it — reused by the

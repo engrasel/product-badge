@@ -28,6 +28,8 @@ export function formatRuleSummary(rule: Pick<DisplayRule, "type" | "value">): st
         return `${label}: < ${value.threshold} units`;
       case "NEW_PRODUCTS":
         return `${label}: within ${value.withinDays} days`;
+      case "PRICE_ABOVE":
+        return `${label}: > $${value.amount}`;
       default:
         return label;
     }

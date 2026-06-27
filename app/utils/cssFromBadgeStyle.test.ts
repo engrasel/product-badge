@@ -55,6 +55,43 @@ describe("cssFromBadgeStyle", () => {
     expect(cssFromBadgeStyle({ ...DEFAULT_BADGE_STYLE, shadow: true }).containerStyle.boxShadow).toBeDefined();
   });
 
+  it("uses a 999px radius for PILL", () => {
+    const { containerStyle } = cssFromBadgeStyle(withShape("PILL"));
+    expect(containerStyle.borderRadius).toBe("999px");
+    expect(containerStyle.clipPath).toBeUndefined();
+  });
+
+  it("renders OUTLINE as transparent fill with text/border carrying the color", () => {
+    const { containerStyle, textStyle } = cssFromBadgeStyle({
+      ...withShape("OUTLINE"),
+      borderColor: "#FF3B30",
+    });
+    expect(containerStyle.backgroundColor).toBe("transparent");
+    expect(textStyle.color).toBe("#FF3B30");
+  });
+
+  it("renders a linear-gradient background when backgroundType is GRADIENT with both colors set", () => {
+    const { containerStyle } = cssFromBadgeStyle({
+      ...DEFAULT_BADGE_STYLE,
+      backgroundType: "GRADIENT",
+      gradientColor1: "#FF3B30",
+      gradientColor2: "#FFD60A",
+    });
+    expect(containerStyle.backgroundImage).toBe("linear-gradient(135deg, #FF3B30, #FFD60A)");
+    expect(containerStyle.backgroundColor).toBeUndefined();
+  });
+
+  it("falls back to a solid background when GRADIENT is set but a gradient color is missing", () => {
+    const { containerStyle } = cssFromBadgeStyle({
+      ...DEFAULT_BADGE_STYLE,
+      backgroundType: "GRADIENT",
+      gradientColor1: null,
+      gradientColor2: null,
+    });
+    expect(containerStyle.backgroundImage).toBeUndefined();
+    expect(containerStyle.backgroundColor).toBe(DEFAULT_BADGE_STYLE.backgroundColor);
+  });
+
   it("maps each animation to its CSS class, with NONE mapping to no class", () => {
     expect(cssFromBadgeStyle({ ...DEFAULT_BADGE_STYLE, animation: "NONE" }).animationClassName).toBeUndefined();
     expect(cssFromBadgeStyle({ ...DEFAULT_BADGE_STYLE, animation: "PULSE" }).animationClassName).toBe(
