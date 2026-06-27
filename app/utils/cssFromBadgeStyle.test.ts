@@ -117,6 +117,29 @@ describe("positionStyleForBadge", () => {
     expect(positionStyleForBadge("BOTTOM_RIGHT", 0, 0)).toMatchObject({ bottom: 8, right: 8 });
   });
 
+  it("anchors edge-midpoints with a single-axis translate", () => {
+    expect(positionStyleForBadge("TOP_CENTER", 0, 0)).toMatchObject({
+      top: 8,
+      left: "50%",
+      transform: "translateX(-50%)",
+    });
+    expect(positionStyleForBadge("BOTTOM_CENTER", 0, 0)).toMatchObject({
+      bottom: 8,
+      left: "50%",
+      transform: "translateX(-50%)",
+    });
+    expect(positionStyleForBadge("MIDDLE_LEFT", 0, 0)).toMatchObject({
+      top: "50%",
+      left: 8,
+      transform: "translateY(-50%)",
+    });
+    expect(positionStyleForBadge("MIDDLE_RIGHT", 0, 0)).toMatchObject({
+      top: "50%",
+      right: 8,
+      transform: "translateY(-50%)",
+    });
+  });
+
   it("centers with a translate transform", () => {
     expect(positionStyleForBadge("CENTER", 0, 0)).toMatchObject({
       top: "50%",

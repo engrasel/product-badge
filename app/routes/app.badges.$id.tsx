@@ -31,6 +31,7 @@ import { listLocations } from "../services/displayLocation.service";
 import { deleteRule, upsertRule } from "../services/displayRule.service";
 import { useBadgeForm } from "../hooks/useBadgeForm";
 import { ColorField } from "../components/customizer/ColorField";
+import { PositionPicker } from "../components/customizer/PositionPicker";
 import { ProductPreviewCard } from "../components/badges/ProductPreviewCard";
 import { RuleEditorModal } from "../components/rules/RuleEditorModal";
 import { UpgradeModal } from "../components/premium/UpgradeModal";
@@ -47,7 +48,6 @@ import {
 import { formatRuleSummary } from "../utils/formatRule";
 import {
   BADGE_ANIMATIONS,
-  BADGE_POSITIONS,
   BADGE_SHAPES,
   DISPLAY_LOCATIONS,
 } from "../utils/constants";
@@ -453,30 +453,16 @@ export default function BadgeWizard() {
                       </Text>
                       {!isPremium && <PremiumLock />}
                     </InlineStack>
-                    <Select
-                      label="Position"
-                      options={BADGE_POSITIONS}
-                      value={values.position}
-                      onChange={(value) => update("position", value as BadgeStyleInput["position"])}
+                    <PositionPicker
+                      position={values.position}
+                      offsetX={values.offsetX}
+                      offsetY={values.offsetY}
+                      onChange={(value) => update("position", value)}
+                      onOffsetChange={(offsetX, offsetY) => {
+                        update("offsetX", offsetX);
+                        update("offsetY", offsetY);
+                      }}
                     />
-                    {values.position === "CUSTOM" && (
-                      <InlineStack gap="300" wrap={false}>
-                        <TextField
-                          label="Offset X (px)"
-                          type="number"
-                          value={String(values.offsetX)}
-                          onChange={(value) => update("offsetX", Number(value || 0))}
-                          autoComplete="off"
-                        />
-                        <TextField
-                          label="Offset Y (px)"
-                          type="number"
-                          value={String(values.offsetY)}
-                          onChange={(value) => update("offsetY", Number(value || 0))}
-                          autoComplete="off"
-                        />
-                      </InlineStack>
-                    )}
                     <RangeSlider
                       label={`Rotation: ${values.rotation}°`}
                       min={-45}

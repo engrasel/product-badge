@@ -119,10 +119,38 @@ export function positionStyleForBadge(
   switch (position) {
     case "TOP_LEFT":
       return { ...base, top: PREVIEW_EDGE_OFFSET, left: PREVIEW_EDGE_OFFSET };
+    case "TOP_CENTER":
+      return {
+        ...base,
+        top: PREVIEW_EDGE_OFFSET,
+        left: "50%",
+        transform: "translateX(-50%)",
+      };
     case "TOP_RIGHT":
       return { ...base, top: PREVIEW_EDGE_OFFSET, right: PREVIEW_EDGE_OFFSET };
+    case "MIDDLE_LEFT":
+      return {
+        ...base,
+        top: "50%",
+        left: PREVIEW_EDGE_OFFSET,
+        transform: "translateY(-50%)",
+      };
+    case "MIDDLE_RIGHT":
+      return {
+        ...base,
+        top: "50%",
+        right: PREVIEW_EDGE_OFFSET,
+        transform: "translateY(-50%)",
+      };
     case "BOTTOM_LEFT":
       return { ...base, bottom: PREVIEW_EDGE_OFFSET, left: PREVIEW_EDGE_OFFSET };
+    case "BOTTOM_CENTER":
+      return {
+        ...base,
+        bottom: PREVIEW_EDGE_OFFSET,
+        left: "50%",
+        transform: "translateX(-50%)",
+      };
     case "BOTTOM_RIGHT":
       return { ...base, bottom: PREVIEW_EDGE_OFFSET, right: PREVIEW_EDGE_OFFSET };
     case "CENTER":

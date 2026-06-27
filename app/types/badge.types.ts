@@ -15,12 +15,18 @@ export type BadgeShape =
 
 export type BadgeAnimation = "NONE" | "PULSE" | "BOUNCE" | "FADE" | "SHAKE";
 
+// The 9-point grid shown in the Position picker, plus CUSTOM for manual
+// pixel offsets ("Adjust position manually").
 export type BadgePosition =
   | "TOP_LEFT"
+  | "TOP_CENTER"
   | "TOP_RIGHT"
-  | "BOTTOM_LEFT"
-  | "BOTTOM_RIGHT"
+  | "MIDDLE_LEFT"
   | "CENTER"
+  | "MIDDLE_RIGHT"
+  | "BOTTOM_LEFT"
+  | "BOTTOM_CENTER"
+  | "BOTTOM_RIGHT"
   | "CUSTOM";
 
 export type BadgeBackgroundType = "SOLID" | "GRADIENT";

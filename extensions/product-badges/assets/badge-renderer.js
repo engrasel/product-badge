@@ -84,12 +84,28 @@
     if (position === "TOP_LEFT") {
       base.top = "8px";
       base.left = "8px";
+    } else if (position === "TOP_CENTER") {
+      base.top = "8px";
+      base.left = "50%";
+      base.transform = "translateX(-50%)";
     } else if (position === "TOP_RIGHT") {
       base.top = "8px";
       base.right = "8px";
+    } else if (position === "MIDDLE_LEFT") {
+      base.top = "50%";
+      base.left = "8px";
+      base.transform = "translateY(-50%)";
+    } else if (position === "MIDDLE_RIGHT") {
+      base.top = "50%";
+      base.right = "8px";
+      base.transform = "translateY(-50%)";
     } else if (position === "BOTTOM_LEFT") {
       base.bottom = "8px";
       base.left = "8px";
+    } else if (position === "BOTTOM_CENTER") {
+      base.bottom = "8px";
+      base.left = "50%";
+      base.transform = "translateX(-50%)";
     } else if (position === "BOTTOM_RIGHT") {
       base.bottom = "8px";
       base.right = "8px";
@@ -246,6 +262,57 @@
         injectBadge(anchor, badge);
       }
     });
+    return anchors.length > 0;
+  }
+
+  // Covers the common case where the merchant only turned on the App Embed
+  // and never dragged the "Product Badge" App Block into their product
+  // template (which is what creates the precise anchor above). Best-effort
+  // across themes via a list of common gallery selectors, falling back to
+  // the first sufficiently large <img> in the main content area.
+  var PDP_IMAGE_SELECTORS = [
+    "[data-product-single-media-wrapper]",
+    ".product__media-item",
+    ".product__media",
+    ".product-single__photo",
+    ".product__photo",
+    "media-gallery",
+    ".product-gallery",
+    ".product__image-wrapper",
+  ];
+
+  function findFallbackPdpImageContainer() {
+    for (var i = 0; i < PDP_IMAGE_SELECTORS.length; i++) {
+      var match = document.querySelector(PDP_IMAGE_SELECTORS[i]);
+      if (match) {
+        return match;
+      }
+    }
+    var images = document.querySelectorAll("main img, [class*='product'] img");
+    for (var j = 0; j < images.length; j++) {
+      if (images[j].offsetWidth >= 150) {
+        return images[j].parentElement || images[j];
+      }
+    }
+    return null;
+  }
+
+  function injectIntoProductDetailFallback(config, hasPreciseAnchor) {
+    if (hasPreciseAnchor || !config.locations.PRODUCT_DETAIL_PAGE) {
+      return;
+    }
+    if (window.location.pathname.indexOf("/products/") !== 0) {
+      return;
+    }
+    var handle = window.location.pathname.split("/products/")[1].split("/")[0].split("?")[0];
+    var badge = pickBadgeForHandle(config, handle, ["PRODUCT_DETAIL_PAGE"]);
+    if (!badge) {
+      return;
+    }
+    var container = findFallbackPdpImageContainer();
+    if (container) {
+      injectBadge(container, badge);
+    }
   }
 
   function injectIntoProductCards(config) {
@@ -272,7 +339,8 @@
   }
 
   function runInjection(config) {
-    injectIntoProductDetailAnchor(config);
+    var hasPreciseAnchor = injectIntoProductDetailAnchor(config);
+    injectIntoProductDetailFallback(config, hasPreciseAnchor);
     injectIntoProductCards(config);
   }
 

@@ -67,12 +67,17 @@ export const BADGE_ANIMATIONS: { value: BadgeAnimation; label: string }[] = [
   { value: "SHAKE", label: "Shake" },
 ];
 
+// The 3x3 grid shown by PositionPicker, in reading order (row by row).
 export const BADGE_POSITIONS: { value: BadgePosition; label: string }[] = [
   { value: "TOP_LEFT", label: "Top Left" },
+  { value: "TOP_CENTER", label: "Top Center" },
   { value: "TOP_RIGHT", label: "Top Right" },
-  { value: "BOTTOM_LEFT", label: "Bottom Left" },
-  { value: "BOTTOM_RIGHT", label: "Bottom Right" },
+  { value: "MIDDLE_LEFT", label: "Middle Left" },
   { value: "CENTER", label: "Center" },
+  { value: "MIDDLE_RIGHT", label: "Middle Right" },
+  { value: "BOTTOM_LEFT", label: "Bottom Left" },
+  { value: "BOTTOM_CENTER", label: "Bottom Center" },
+  { value: "BOTTOM_RIGHT", label: "Bottom Right" },
   { value: "CUSTOM", label: "Custom Offset" },
 ];
 
