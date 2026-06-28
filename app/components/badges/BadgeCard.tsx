@@ -67,7 +67,7 @@ export function BadgeCard({ template, loading, locked, onSelect }: BadgeCardProp
           )}
         </InlineStack>
 
-        <Button onClick={() => onSelect(template)} loading={loading} fullWidth>
+        <Button onClick={() => onSelect(template)} loading={loading} disabled={loading} fullWidth>
           Select
         </Button>
       </BlockStack>

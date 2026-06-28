@@ -10,7 +10,6 @@ import {
   Page,
   Card,
   BlockStack,
-  Banner,
   InlineGrid,
   InlineStack,
   TextField,
@@ -21,9 +20,9 @@ import {
 import { SearchIcon } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
-import { createBadgeFromTemplate, createCustomBadge, listBadges } from "../services/badge.service";
+import { createBadgeFromTemplate, createCustomBadge } from "../services/badge.service";
 import { getShopPlan } from "../services/plan.service";
-import { canUseTemplate, isAtFreeBadgeLimit } from "../utils/planLimits";
+import { canUseTemplate } from "../utils/planLimits";
 import { BadgeCard } from "../components/badges/BadgeCard";
 import { UpgradeModal } from "../components/premium/UpgradeModal";
 import { BADGE_TEMPLATES } from "../utils/constants";
@@ -31,16 +30,8 @@ import type { BadgeTemplate } from "../types/badge.types";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const [{ plan }, badges] = await Promise.all([
-    getShopPlan(session.shop),
-    listBadges(session.shop),
-  ]);
-  const activeBadgeCount = badges.filter((badge) => badge.isActive).length;
-
-  return {
-    plan,
-    atFreeLimit: isAtFreeBadgeLimit(plan, activeBadgeCount),
-  };
+  const { plan } = await getShopPlan(session.shop);
+  return { plan };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -65,7 +56,7 @@ const TABS: { id: "all" | "free" | "premium"; content: string }[] = [
 ];
 
 export default function BadgeLibrary() {
-  const { plan, atFreeLimit } = useLoaderData<typeof loader>();
+  const { plan } = useLoaderData<typeof loader>();
   const submit = useSubmit();
   const navigation = useNavigation();
 
@@ -93,22 +84,12 @@ export default function BadgeLibrary() {
       setShowUpgradeModal(true);
       return;
     }
-    if (atFreeLimit) {
-      setShowUpgradeModal(true);
-      return;
-    }
     submit({ templateKey: template.key }, { method: "post" });
   };
 
   return (
     <Page title="Badge Library">
       <BlockStack gap="400">
-        {atFreeLimit && (
-          <Banner tone="warning" title="You've reached the Free plan limit of 2 active badges">
-            <p>Upgrade to Premium for unlimited badges and every template.</p>
-          </Banner>
-        )}
-
         <Card>
           <BlockStack gap="400">
             <InlineStack gap="400" wrap={false} align="space-between" blockAlign="center">

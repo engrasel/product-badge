@@ -3,9 +3,9 @@ import { BADGE_SHAPES, BADGE_TEMPLATES, DISPLAY_LOCATIONS, DISPLAY_RULE_TYPES } 
 import { FREE_SHAPES } from "./planLimits";
 
 describe("BADGE_TEMPLATES", () => {
-  it("has exactly 2 free templates and 20 Premium templates, per the spec", () => {
-    expect(BADGE_TEMPLATES.filter((template) => !template.isPro)).toHaveLength(2);
-    expect(BADGE_TEMPLATES.filter((template) => template.isPro)).toHaveLength(20);
+  it("has 22 templates, all Free", () => {
+    expect(BADGE_TEMPLATES).toHaveLength(22);
+    expect(BADGE_TEMPLATES.filter((template) => template.isPro)).toHaveLength(0);
   });
 
   it("has unique keys", () => {

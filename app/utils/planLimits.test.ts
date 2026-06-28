@@ -4,7 +4,6 @@ import {
   canUseRuleType,
   canUseShape,
   canUseTemplate,
-  isAtFreeBadgeLimit,
 } from "./planLimits";
 
 describe("planLimits", () => {
@@ -31,11 +30,5 @@ describe("planLimits", () => {
     expect(canUseShape("FREE", "RIBBON")).toBe(true);
     expect(canUseShape("FREE", "PILL")).toBe(false);
     expect(canUseShape("PREMIUM", "PILL")).toBe(true);
-  });
-
-  it("isAtFreeBadgeLimit is only true for Free shops with 2+ active badges", () => {
-    expect(isAtFreeBadgeLimit("FREE", 1)).toBe(false);
-    expect(isAtFreeBadgeLimit("FREE", 2)).toBe(true);
-    expect(isAtFreeBadgeLimit("PREMIUM", 50)).toBe(false);
   });
 });

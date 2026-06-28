@@ -49,21 +49,20 @@ describe("badge.service", () => {
     expect(badge.rules).toHaveLength(0);
   });
 
-  it("createBadgeFromTemplate rejects Premium templates and unknown keys on the Free plan", async () => {
-    await expect(createBadgeFromTemplate(shop, "best-seller")).rejects.toThrow();
+  it("createBadgeFromTemplate rejects unknown keys", async () => {
     await expect(createBadgeFromTemplate(shop, "not-a-real-key")).rejects.toThrow();
   });
 
-  it("createBadgeFromTemplate allows Premium templates once the shop is Premium", async () => {
-    await setShopPremium(shop, { chargeId: "test-charge" });
+  it("createBadgeFromTemplate allows every template on the Free plan now that all templates are free", async () => {
     const badge = await createBadgeFromTemplate(shop, "best-seller");
     expect(badge.templateKey).toBe("best-seller");
   });
 
-  it("createBadgeFromTemplate enforces the 2 active badge limit on the Free plan", async () => {
+  it("createBadgeFromTemplate allows creating and activating more than 2 badges on the Free plan", async () => {
     await createBadgeFromTemplate(shop, "sale");
     await createBadgeFromTemplate(shop, "new");
-    await expect(createBadgeFromTemplate(shop, "sale")).rejects.toThrow();
+    const third = await createBadgeFromTemplate(shop, "best-seller");
+    expect(third.templateKey).toBe("best-seller");
   });
 
   it("createCustomBadge is Premium-only", async () => {

@@ -20,17 +20,12 @@ import {
 
 import { authenticate } from "../shopify.server";
 import { deleteBadge, listBadges, updateBadge } from "../services/badge.service";
-import { getShopPlan } from "../services/plan.service";
-import { FREE_BADGE_LIMIT } from "../utils/planLimits";
 import { BadgePreview } from "../components/badges/BadgePreview";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const [badges, { plan }] = await Promise.all([
-    listBadges(session.shop),
-    getShopPlan(session.shop),
-  ]);
-  return { badges, plan };
+  const badges = await listBadges(session.shop);
+  return { badges };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -54,7 +49,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function MyBadges() {
-  const { badges, plan } = useLoaderData<typeof loader>();
+  const { badges } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
@@ -81,11 +76,7 @@ export default function MyBadges() {
   return (
     <Page
       title="My Badges"
-      subtitle={
-        plan === "FREE"
-          ? `${activeCount} / ${FREE_BADGE_LIMIT} active badges used on the Free plan`
-          : `${activeCount} active badge${activeCount === 1 ? "" : "s"}`
-      }
+      subtitle={`${activeCount} active badge${activeCount === 1 ? "" : "s"}`}
       primaryAction={{ content: "Browse Badge Library", onAction: () => navigate("/app/badges") }}
     >
       {badges.length === 0 ? (

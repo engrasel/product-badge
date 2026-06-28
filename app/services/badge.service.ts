@@ -11,7 +11,6 @@ import {
   FREE_LOCATIONS,
   FREE_SHAPES,
   canUseTemplate,
-  isAtFreeBadgeLimit,
 } from "../utils/planLimits";
 import {
   parseBadgeDisplayLocations,
@@ -106,24 +105,13 @@ export async function updateBadge(
   return toDomain(updated);
 }
 
-async function assertCanCreateBadge(shop: string) {
-  const { plan } = await getShopPlan(shop);
-  const activeCount = await prisma.badge.count({ where: { shop, isActive: true } });
-  if (isAtFreeBadgeLimit(plan, activeCount)) {
-    throw new Error(
-      "You've reached the Free plan limit of 2 active badges. Upgrade to Premium for unlimited badges.",
-    );
-  }
-  return plan;
-}
-
 // "Custom Badge" nav entry — starts a brand-new badge from scratch (not from
 // a library template) and drops the merchant straight into the Customizer.
 // The custom designer itself is a Premium feature (spec: "No custom badge
 // designer" on Free), so this throws for free shops rather than silently
 // creating a badge they can't fully configure.
 export async function createCustomBadge(shop: string) {
-  const plan = await assertCanCreateBadge(shop);
+  const { plan } = await getShopPlan(shop);
   if (plan === "FREE") {
     throw new Error("Custom badge design is a Premium feature. Upgrade to Premium to use it.");
   }
@@ -151,7 +139,7 @@ export async function createBadgeFromTemplate(shop: string, templateKey: string)
     throw new Error(`Unknown badge template: ${templateKey}`);
   }
 
-  const plan = await assertCanCreateBadge(shop);
+  const { plan } = await getShopPlan(shop);
   if (!canUseTemplate(plan, template.key, template.isPro)) {
     throw new Error(`"${template.name}" is a Premium template and cannot be selected on the Free plan`);
   }

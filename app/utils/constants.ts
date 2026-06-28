@@ -99,35 +99,35 @@ export const DISPLAY_RULE_TYPES: {
   { value: "PRICE_ABOVE", label: "Price Above X", description: "Products priced above a threshold" },
 ];
 
-// The Badge Library catalog — 2 free templates (Sale, New) and 20 Premium
-// templates, per spec. Selecting a free template seeds a new Badge row with
-// these style values; the merchant can then change anything in the Wizard.
-// "Custom Badge" is special-cased by the Library page to start the blank
-// Customizer flow (createCustomBadge) instead of createBadgeFromTemplate.
+// The Badge Library catalog — all templates are Free. Selecting a template
+// seeds a new Badge row with these style values; the merchant can then change
+// anything in the Wizard. "Custom Badge" is special-cased by the Library page
+// to start the blank Customizer flow (createCustomBadge) instead of
+// createBadgeFromTemplate.
 export const BADGE_TEMPLATES: BadgeTemplate[] = [
   { key: "sale", name: "Sale", isPro: false, preview: { text: "SALE", backgroundColor: "#FF3B30", textColor: "#FFFFFF", borderColor: "#FF3B30", shape: "RIBBON", animation: "NONE" } },
   { key: "new", name: "New", isPro: false, preview: { text: "NEW", backgroundColor: "#34C759", textColor: "#FFFFFF", borderColor: "#34C759", shape: "ROUNDED", animation: "NONE" } },
 
-  { key: "best-seller", name: "Best Seller", isPro: true, preview: { text: "BEST SELLER", backgroundColor: "#FFD60A", textColor: "#1C1C1E", borderColor: "#FFD60A", shape: "RIBBON", animation: "NONE" } },
-  { key: "limited-stock", name: "Limited Stock", isPro: true, preview: { text: "LIMITED STOCK", backgroundColor: "#FF9500", textColor: "#FFFFFF", borderColor: "#FF9500", shape: "RECTANGLE", animation: "PULSE" } },
-  { key: "trending", name: "Trending", isPro: true, preview: { text: "TRENDING", backgroundColor: "#AF52DE", textColor: "#FFFFFF", borderColor: "#AF52DE", shape: "ROUNDED", animation: "NONE" } },
-  { key: "hot", name: "Hot", isPro: true, preview: { text: "HOT", backgroundColor: "#FF2D55", textColor: "#FFFFFF", borderColor: "#FF2D55", shape: "CIRCLE", animation: "PULSE" } },
-  { key: "exclusive", name: "Exclusive", isPro: true, preview: { text: "EXCLUSIVE", backgroundColor: "#1C1C1E", textColor: "#FFD60A", borderColor: "#FFD60A", shape: "RECTANGLE", animation: "NONE" } },
-  { key: "flash-sale", name: "Flash Sale", isPro: true, preview: { text: "FLASH SALE", backgroundColor: "#FFCC00", textColor: "#1C1C1E", borderColor: "#FFCC00", shape: "RIBBON", animation: "SHAKE" } },
-  { key: "super-sale", name: "Super Sale", isPro: true, preview: { text: "SUPER SALE", backgroundColor: "#FF3B30", textColor: "#FFFFFF", borderColor: "#FF3B30", shape: "RIBBON", animation: "BOUNCE" } },
-  { key: "black-friday", name: "Black Friday", isPro: true, preview: { text: "BLACK FRIDAY", backgroundColor: "#000000", textColor: "#FFFFFF", borderColor: "#FFD60A", shape: "RECTANGLE", animation: "NONE" } },
-  { key: "cyber-monday", name: "Cyber Monday", isPro: true, preview: { text: "CYBER MONDAY", backgroundColor: "#0A84FF", textColor: "#FFFFFF", borderColor: "#0A84FF", shape: "RECTANGLE", animation: "NONE" } },
-  { key: "summer-sale", name: "Summer Sale", isPro: true, preview: { text: "SUMMER SALE", backgroundColor: "#FF9F0A", textColor: "#FFFFFF", borderColor: "#FF9F0A", shape: "ROUNDED", animation: "NONE" } },
-  { key: "christmas-sale", name: "Christmas Sale", isPro: true, preview: { text: "CHRISTMAS SALE", backgroundColor: "#D62828", textColor: "#FFFFFF", borderColor: "#2A9D5C", shape: "RIBBON", animation: "NONE" } },
-  { key: "deal", name: "Deal", isPro: true, preview: { text: "DEAL", backgroundColor: "#0A84FF", textColor: "#FFFFFF", borderColor: "#0A84FF", shape: "PILL", animation: "NONE" } },
-  { key: "featured", name: "Featured", isPro: true, preview: { text: "FEATURED", backgroundColor: "#5856D6", textColor: "#FFFFFF", borderColor: "#5856D6", shape: "TAG", animation: "NONE" } },
-  { key: "low-stock", name: "Low Stock", isPro: true, preview: { text: "LOW STOCK", backgroundColor: "#FF9500", textColor: "#FFFFFF", borderColor: "#FF9500", shape: "RECTANGLE", animation: "SHAKE" } },
-  { key: "new-arrival", name: "New Arrival", isPro: true, preview: { text: "NEW ARRIVAL", backgroundColor: "#34C759", textColor: "#FFFFFF", borderColor: "#34C759", shape: "CORNER", animation: "NONE" } },
-  { key: "staff-pick", name: "Staff Pick", isPro: true, preview: { text: "STAFF PICK", backgroundColor: "#1C1C1E", textColor: "#FFFFFF", borderColor: "#1C1C1E", shape: "PILL", animation: "NONE" } },
-  { key: "bestseller-ribbon", name: "Bestseller Ribbon", isPro: true, preview: { text: "BESTSELLER", backgroundColor: "#FFD60A", textColor: "#1C1C1E", borderColor: "#FFD60A", shape: "RIBBON", animation: "NONE" } },
-  { key: "limited-edition", name: "Limited Edition", isPro: true, preview: { text: "LIMITED EDITION", backgroundColor: "#5856D6", textColor: "#FFFFFF", borderColor: "#5856D6", shape: "OUTLINE", animation: "PULSE" } },
-  { key: "50-off", name: "50% OFF", isPro: true, preview: { text: "50% OFF", backgroundColor: "#FF3B30", textColor: "#FFFFFF", borderColor: "#FF3B30", shape: "CIRCLE", animation: "NONE" } },
-  { key: "custom-badge", name: "Custom Badge", isPro: true, preview: { text: "BADGE", backgroundColor: "#1C1C1E", textColor: "#FFFFFF", borderColor: "#1C1C1E", shape: "RECTANGLE", animation: "NONE" } },
+  { key: "best-seller", name: "Best Seller", isPro: false, preview: { text: "BEST SELLER", backgroundColor: "#FFD60A", textColor: "#1C1C1E", borderColor: "#FFD60A", shape: "RIBBON", animation: "NONE" } },
+  { key: "limited-stock", name: "Limited Stock", isPro: false, preview: { text: "LIMITED STOCK", backgroundColor: "#FF9500", textColor: "#FFFFFF", borderColor: "#FF9500", shape: "RECTANGLE", animation: "PULSE" } },
+  { key: "trending", name: "Trending", isPro: false, preview: { text: "TRENDING", backgroundColor: "#AF52DE", textColor: "#FFFFFF", borderColor: "#AF52DE", shape: "ROUNDED", animation: "NONE" } },
+  { key: "hot", name: "Hot", isPro: false, preview: { text: "HOT", backgroundColor: "#FF2D55", textColor: "#FFFFFF", borderColor: "#FF2D55", shape: "CIRCLE", animation: "PULSE" } },
+  { key: "exclusive", name: "Exclusive", isPro: false, preview: { text: "EXCLUSIVE", backgroundColor: "#1C1C1E", textColor: "#FFD60A", borderColor: "#FFD60A", shape: "RECTANGLE", animation: "NONE" } },
+  { key: "flash-sale", name: "Flash Sale", isPro: false, preview: { text: "FLASH SALE", backgroundColor: "#FFCC00", textColor: "#1C1C1E", borderColor: "#FFCC00", shape: "RIBBON", animation: "SHAKE" } },
+  { key: "super-sale", name: "Super Sale", isPro: false, preview: { text: "SUPER SALE", backgroundColor: "#FF3B30", textColor: "#FFFFFF", borderColor: "#FF3B30", shape: "RIBBON", animation: "BOUNCE" } },
+  { key: "black-friday", name: "Black Friday", isPro: false, preview: { text: "BLACK FRIDAY", backgroundColor: "#000000", textColor: "#FFFFFF", borderColor: "#FFD60A", shape: "RECTANGLE", animation: "NONE" } },
+  { key: "cyber-monday", name: "Cyber Monday", isPro: false, preview: { text: "CYBER MONDAY", backgroundColor: "#0A84FF", textColor: "#FFFFFF", borderColor: "#0A84FF", shape: "RECTANGLE", animation: "NONE" } },
+  { key: "summer-sale", name: "Summer Sale", isPro: false, preview: { text: "SUMMER SALE", backgroundColor: "#FF9F0A", textColor: "#FFFFFF", borderColor: "#FF9F0A", shape: "ROUNDED", animation: "NONE" } },
+  { key: "christmas-sale", name: "Christmas Sale", isPro: false, preview: { text: "CHRISTMAS SALE", backgroundColor: "#D62828", textColor: "#FFFFFF", borderColor: "#2A9D5C", shape: "RIBBON", animation: "NONE" } },
+  { key: "deal", name: "Deal", isPro: false, preview: { text: "DEAL", backgroundColor: "#0A84FF", textColor: "#FFFFFF", borderColor: "#0A84FF", shape: "PILL", animation: "NONE" } },
+  { key: "featured", name: "Featured", isPro: false, preview: { text: "FEATURED", backgroundColor: "#5856D6", textColor: "#FFFFFF", borderColor: "#5856D6", shape: "TAG", animation: "NONE" } },
+  { key: "low-stock", name: "Low Stock", isPro: false, preview: { text: "LOW STOCK", backgroundColor: "#FF9500", textColor: "#FFFFFF", borderColor: "#FF9500", shape: "RECTANGLE", animation: "SHAKE" } },
+  { key: "new-arrival", name: "New Arrival", isPro: false, preview: { text: "NEW ARRIVAL", backgroundColor: "#34C759", textColor: "#FFFFFF", borderColor: "#34C759", shape: "CORNER", animation: "NONE" } },
+  { key: "staff-pick", name: "Staff Pick", isPro: false, preview: { text: "STAFF PICK", backgroundColor: "#1C1C1E", textColor: "#FFFFFF", borderColor: "#1C1C1E", shape: "PILL", animation: "NONE" } },
+  { key: "bestseller-ribbon", name: "Bestseller Ribbon", isPro: false, preview: { text: "BESTSELLER", backgroundColor: "#FFD60A", textColor: "#1C1C1E", borderColor: "#FFD60A", shape: "RIBBON", animation: "NONE" } },
+  { key: "limited-edition", name: "Limited Edition", isPro: false, preview: { text: "LIMITED EDITION", backgroundColor: "#5856D6", textColor: "#FFFFFF", borderColor: "#5856D6", shape: "OUTLINE", animation: "PULSE" } },
+  { key: "50-off", name: "50% OFF", isPro: false, preview: { text: "50% OFF", backgroundColor: "#FF3B30", textColor: "#FFFFFF", borderColor: "#FF3B30", shape: "CIRCLE", animation: "NONE" } },
+  { key: "custom-badge", name: "Custom Badge", isPro: false, preview: { text: "BADGE", backgroundColor: "#1C1C1E", textColor: "#FFFFFF", borderColor: "#1C1C1E", shape: "RECTANGLE", animation: "NONE" } },
 ];
 
 export type DisplayLocationCategory = "Collections" | "Products" | "Discovery" | "Homepage" | "Cart";

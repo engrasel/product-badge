@@ -8,15 +8,13 @@ import type { DisplayLocationKey } from "../types/locations.types";
 
 export type Plan = "FREE" | "PREMIUM";
 
-export const FREE_BADGE_LIMIT = 2;
-export const FREE_TEMPLATE_KEYS = ["sale", "new"] as const;
 export const FREE_RULE_TYPES: DisplayRuleType[] = ["ALL_PRODUCTS", "DISCOUNT_PRODUCTS"];
 export const FREE_LOCATIONS: DisplayLocationKey[] = ["PRODUCT_CARDS", "PRODUCT_DETAIL_PAGE"];
 export const FREE_SHAPES: BadgeShape[] = ["RECTANGLE", "ROUNDED", "CIRCLE", "RIBBON"];
 
 export function canUseTemplate(plan: Plan, templateKey: string, isPro: boolean): boolean {
   if (plan === "PREMIUM") return true;
-  return !isPro && (FREE_TEMPLATE_KEYS as readonly string[]).includes(templateKey);
+  return !isPro;
 }
 
 export function canUseRuleType(plan: Plan, type: DisplayRuleType): boolean {
@@ -29,8 +27,4 @@ export function canUseLocation(plan: Plan, key: DisplayLocationKey): boolean {
 
 export function canUseShape(plan: Plan, shape: BadgeShape): boolean {
   return plan === "PREMIUM" || FREE_SHAPES.includes(shape);
-}
-
-export function isAtFreeBadgeLimit(plan: Plan, activeBadgeCount: number): boolean {
-  return plan === "FREE" && activeBadgeCount >= FREE_BADGE_LIMIT;
 }
