@@ -37,12 +37,9 @@ export default function App() {
           <a href="/app" rel="home">
             Dashboard
           </a>
-          <a href="/app/badges">Badge Library</a>
-          <a href="/app/my-badges">My Badges</a>
-          <a href="/app/badges/custom">Create Badge</a>
+          <a href="/app/badges">Badges</a>
           <a href="/app/rules">Display Rules</a>
           <a href="/app/locations">Display Locations</a>
-          <a href="/app/billing">Billing / Upgrade</a>
           <a href="/app/settings">Settings</a>
         </NavMenu>
         <Frame>

@@ -175,10 +175,10 @@ describe("evaluateRule", () => {
 describe("evaluateBadgeRules", () => {
   it("a badge with no rules never matches", async () => {
     const admin = fakeAdmin(() => ({ products: { nodes: [] } }));
-    expect(await evaluateBadgeRules(admin, [])).toEqual({ matchesAll: false, handles: new Set() });
+    expect(await evaluateBadgeRules(admin, [], "ALL")).toEqual({ matchesAll: false, handles: new Set() });
   });
 
-  it("multiple rules AND together via set intersection", async () => {
+  it("ALL mode AND's rules together via set intersection", async () => {
     const admin = fakeAdmin((_q, variables) => {
       const query = String(variables.query);
       if (query.startsWith("tag:")) {
@@ -190,22 +190,57 @@ describe("evaluateBadgeRules", () => {
       return { products: { nodes: [] } };
     });
 
-    const result = await evaluateBadgeRules(admin, [
-      rule("PRODUCT_TAGS", { tags: ["sale"] }),
-      rule("VENDOR", { vendors: ["Acme"] }),
-    ]);
+    const result = await evaluateBadgeRules(
+      admin,
+      [rule("PRODUCT_TAGS", { tags: ["sale"] }), rule("VENDOR", { vendors: ["Acme"] })],
+      "ALL",
+    );
     expect(result.matchesAll).toBe(false);
     if (!result.matchesAll) {
       expect([...result.handles].sort()).toEqual(["b", "c"]);
     }
   });
 
-  it("ALL_PRODUCTS acts as the identity element — combined with another rule, only that rule narrows the result", async () => {
+  it("ANY mode OR's rules together via set union", async () => {
+    const admin = fakeAdmin((_q, variables) => {
+      const query = String(variables.query);
+      if (query.startsWith("tag:")) {
+        return { products: { nodes: [{ handle: "a" }, { handle: "b" }] } };
+      }
+      if (query.startsWith("vendor:")) {
+        return { products: { nodes: [{ handle: "b" }, { handle: "c" }] } };
+      }
+      return { products: { nodes: [] } };
+    });
+
+    const result = await evaluateBadgeRules(
+      admin,
+      [rule("PRODUCT_TAGS", { tags: ["sale"] }), rule("VENDOR", { vendors: ["Acme"] })],
+      "ANY",
+    );
+    expect(result.matchesAll).toBe(false);
+    if (!result.matchesAll) {
+      expect([...result.handles].sort()).toEqual(["a", "b", "c"]);
+    }
+  });
+
+  it("ANY mode short-circuits to matchesAll if any rule matches everything", async () => {
+    const admin = fakeAdmin(() => ({ products: { nodes: [{ handle: "a" }] } }));
+    const result = await evaluateBadgeRules(
+      admin,
+      [rule("ALL_PRODUCTS"), rule("PRODUCT_TAGS", { tags: ["sale"] })],
+      "ANY",
+    );
+    expect(result).toEqual({ matchesAll: true });
+  });
+
+  it("ALL_PRODUCTS acts as the identity element in ALL mode — only the other rule narrows the result", async () => {
     const admin = fakeAdmin(() => ({ products: { nodes: [{ handle: "a" }, { handle: "b" }] } }));
-    const result = await evaluateBadgeRules(admin, [
-      rule("ALL_PRODUCTS"),
-      rule("PRODUCT_TAGS", { tags: ["sale"] }),
-    ]);
+    const result = await evaluateBadgeRules(
+      admin,
+      [rule("ALL_PRODUCTS"), rule("PRODUCT_TAGS", { tags: ["sale"] })],
+      "ALL",
+    );
     expect(result).toEqual({ matchesAll: false, handles: new Set(["a", "b"]) });
   });
 
@@ -213,7 +248,17 @@ describe("evaluateBadgeRules", () => {
     const admin = fakeAdmin(() => {
       throw new Error("should not call graphql");
     });
-    expect(await evaluateBadgeRules(admin, [rule("ALL_PRODUCTS")])).toEqual({ matchesAll: true });
+    expect(await evaluateBadgeRules(admin, [rule("ALL_PRODUCTS")], "ALL")).toEqual({ matchesAll: true });
+  });
+
+  it("STATUS queries a lowercased OR query over the status field", async () => {
+    let capturedQuery = "";
+    const admin = fakeAdmin((_q, variables) => {
+      capturedQuery = String(variables.query);
+      return { products: { nodes: [] } };
+    });
+    await evaluateRule(admin, rule("STATUS", { statuses: ["ACTIVE", "DRAFT"] }));
+    expect(capturedQuery).toBe("status:'active' OR status:'draft'");
   });
 
   it("a shared RuleCache de-dupes identical rules across two badges into one Admin API call", async () => {
@@ -228,8 +273,8 @@ describe("evaluateBadgeRules", () => {
     const sameRuleOnBadgeTwo = rule("PRODUCT_TAGS", { tags: ["sale"] });
 
     await Promise.all([
-      evaluateBadgeRules(admin, [sameRuleOnBadgeOne], cache),
-      evaluateBadgeRules(admin, [sameRuleOnBadgeTwo], cache),
+      evaluateBadgeRules(admin, [sameRuleOnBadgeOne], "ALL", cache),
+      evaluateBadgeRules(admin, [sameRuleOnBadgeTwo], "ALL", cache),
     ]);
 
     expect(callCount).toBe(1);

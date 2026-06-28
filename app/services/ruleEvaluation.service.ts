@@ -292,6 +292,12 @@ async function evaluateRuleUncached(
         handles: await fetchHandlesByQuery(admin, `variants.price:>${amount}`),
       };
     }
+
+    case "STATUS": {
+      const value = parseValue<RuleValueByType["STATUS"]>(rule.value);
+      const query = orQuery("status", (value?.statuses ?? []).map((status) => status.toLowerCase()));
+      return { matchesAll: false, handles: query ? await fetchHandlesByQuery(admin, query) : new Set() };
+    }
   }
 }
 
@@ -327,13 +333,15 @@ function intersect(a: Set<string>, b: Set<string>): Set<string> {
   return result;
 }
 
-// A badge's rules are AND'd together (e.g. "Selected Collections" + "Inventory
-// Below X" narrows to products satisfying both). A rule-less badge never
-// shows. Rules within a badge are evaluated in parallel since intersection
-// doesn't care about order.
+// A badge's rules combine according to its matchType: "ALL" AND's every rule
+// together (e.g. "Selected Collections" + "Inventory Below X" narrows to
+// products satisfying both); "ANY" OR's them (matches a product satisfying
+// at least one). A rule-less badge never shows. Rules within a badge are
+// evaluated in parallel since neither intersection nor union cares about order.
 export async function evaluateBadgeRules(
   admin: AdminContext,
   rules: DisplayRule[],
+  matchType: "ALL" | "ANY",
   cache: RuleCache = new Map(),
 ): Promise<RuleEvaluation> {
   if (rules.length === 0) {
@@ -341,6 +349,20 @@ export async function evaluateBadgeRules(
   }
 
   const results = await Promise.all(rules.map((rule) => evaluateRule(admin, rule, cache)));
+
+  if (matchType === "ANY") {
+    if (results.some((result) => result.matchesAll)) {
+      return { matchesAll: true };
+    }
+    const union = new Set<string>();
+    for (const result of results) {
+      if (result.matchesAll) continue;
+      for (const handle of result.handles) {
+        union.add(handle);
+      }
+    }
+    return { matchesAll: false, handles: union };
+  }
 
   let matchesAll = false;
   let intersection: Set<string> | null = null;

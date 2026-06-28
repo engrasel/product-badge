@@ -1,11 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { BADGE_SHAPES, BADGE_TEMPLATES, DISPLAY_LOCATIONS, DISPLAY_RULE_TYPES } from "./constants";
-import { FREE_SHAPES } from "./planLimits";
 
 describe("BADGE_TEMPLATES", () => {
-  it("has 22 templates, all Free", () => {
+  it("has 22 templates", () => {
     expect(BADGE_TEMPLATES).toHaveLength(22);
-    expect(BADGE_TEMPLATES.filter((template) => template.isPro)).toHaveLength(0);
   });
 
   it("has unique keys", () => {
@@ -32,20 +30,15 @@ describe("DISPLAY_LOCATIONS", () => {
 });
 
 describe("DISPLAY_RULE_TYPES", () => {
-  it("has all 11 rule types from the spec, including Price Above X", () => {
-    expect(DISPLAY_RULE_TYPES).toHaveLength(11);
+  it("has all 12 rule types, including Price Above X and Status", () => {
+    expect(DISPLAY_RULE_TYPES).toHaveLength(12);
     expect(DISPLAY_RULE_TYPES.map((rule) => rule.value)).toContain("PRICE_ABOVE");
+    expect(DISPLAY_RULE_TYPES.map((rule) => rule.value)).toContain("STATUS");
   });
 });
 
 describe("BADGE_SHAPES", () => {
-  it("has the 4 free shapes plus 4 Premium shapes, per the spec", () => {
+  it("has 8 shapes", () => {
     expect(BADGE_SHAPES).toHaveLength(8);
-    expect(BADGE_SHAPES.filter((shape) => !shape.isPro)).toHaveLength(4);
-  });
-
-  it("agrees with FREE_SHAPES on which shapes are free", () => {
-    const freeInConstants = BADGE_SHAPES.filter((shape) => !shape.isPro).map((shape) => shape.value);
-    expect(new Set(freeInConstants)).toEqual(new Set(FREE_SHAPES));
   });
 });

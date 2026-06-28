@@ -1,20 +1,16 @@
-import { BlockStack, InlineStack, Text, Badge as StatusBadge, Button, Box, Icon } from "@shopify/polaris";
-import { LockIcon } from "@shopify/polaris-icons";
+import { BlockStack, InlineStack, Text, Button, Box } from "@shopify/polaris";
 import { BadgePreview } from "./BadgePreview";
 import type { BadgeTemplate } from "../../types/badge.types";
 
 type BadgeCardProps = {
   template: BadgeTemplate;
   loading?: boolean;
-  /** Whether this card is unavailable on the shop's current plan. */
-  locked?: boolean;
   onSelect: (template: BadgeTemplate) => void;
 };
 
-// One card in the Badge Library grid — preview, name, Free/Premium label, and
-// a Select button. Locked templates show a lock icon; selecting one opens the
-// Upgrade modal instead of creating a badge (handled by the caller).
-export function BadgeCard({ template, loading, locked, onSelect }: BadgeCardProps) {
+// One card in the Templates gallery — preview, name, and a Select button that
+// creates a new badge from this template (handled by the caller).
+export function BadgeCard({ template, loading, onSelect }: BadgeCardProps) {
   return (
     <Box
       background="bg-surface"
@@ -53,19 +49,9 @@ export function BadgeCard({ template, loading, locked, onSelect }: BadgeCardProp
           </InlineStack>
         </Box>
 
-        <InlineStack align="space-between" blockAlign="center">
-          <Text as="h3" fontWeight="semibold">
-            {template.name}
-          </Text>
-          {template.isPro ? (
-            <InlineStack gap="100" blockAlign="center">
-              {locked && <Icon source={LockIcon} tone="subdued" />}
-              <StatusBadge tone="warning">Premium</StatusBadge>
-            </InlineStack>
-          ) : (
-            <StatusBadge tone="success">Free</StatusBadge>
-          )}
-        </InlineStack>
+        <Text as="h3" fontWeight="semibold">
+          {template.name}
+        </Text>
 
         <Button onClick={() => onSelect(template)} loading={loading} disabled={loading} fullWidth>
           Select

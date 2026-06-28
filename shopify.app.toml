@@ -29,12 +29,6 @@ api_version = "2026-07"
   uri = "/webhooks/app/scopes_update"
   topics = [ "app/scopes_update" ]
 
-  # Keeps ShopSettings.plan correct if a merchant cancels/changes billing from
-  # Shopify's own admin (Settings > Billing) rather than from inside the app.
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/app/subscriptions_update"
-  topics = [ "app_subscriptions/update" ]
-
   # Mandatory GDPR compliance webhooks — required before a public app can be
   # submitted for App Store review. See app/routes/webhooks.customers.*.tsx
   # and webhooks.shop.redact.tsx.

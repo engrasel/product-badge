@@ -30,18 +30,14 @@ model Session {
   refreshTokenExpires DateTime?
 }
 
-// Per-shop master switch, plan, and billing state. One row per installed shop.
+// Per-shop master switch and preferences. One row per installed shop.
 model ShopSettings {
   id        String   @id @default(cuid())
   shop      String   @unique
   isEnabled Boolean  @default(true)
 
-  // Plan/billing — synced from Shopify Billing (authenticate.admin().billing),
-  // never set permanently client-side. "FREE" | "PREMIUM".
-  plan               String    @default("FREE")
-  subscriptionStatus String    @default("INACTIVE")
-  chargeId           String?
-  currentPeriodEnd   DateTime?
+  language String  @default("en")
+  timezone String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -56,6 +52,8 @@ model Badge {
   name            String
   templateKey     String // catalog key it was based on (e.g. "sale"), or "custom"
   isActive        Boolean  @default(true)
+  isArchived      Boolean  @default(false)
+  matchType       String   @default("ALL") // "ALL" | "ANY" — how this badge's DisplayRule rows combine
 
   text            String   @default("SALE")
   backgroundColor String   @default("#FF3B30")
@@ -78,8 +76,7 @@ model Badge {
   offsetY         Int      @default(0)
   customCss       String?
 
-  // Premium design/display extensions — always re-validated against the
-  // shop's live plan in badge.service.updateBadge, never trusted as-is.
+  // Design/display extensions.
   backgroundType    String    @default("SOLID") // SOLID | GRADIENT
   gradientColor1    String?
   gradientColor2    String?
@@ -88,7 +85,7 @@ model Badge {
   scheduleEnd       DateTime?
   timezone          String?
   displayLocations  String? // JSON array of DisplayLocationKey; null = all shop-enabled locations
-  customCssCode     String? // raw CSS text injected as a scoped <style> tag (premium)
+  customCssCode     String? // raw CSS text injected as a scoped <style> tag
 
   rules     DisplayRule[]
 

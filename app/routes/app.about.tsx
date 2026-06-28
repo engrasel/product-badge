@@ -39,7 +39,7 @@ export default function About() {
               <List>
                 <List.Item>Remix on React Router + Vite</List.Item>
                 <List.Item>Shopify Polaris &amp; App Bridge</List.Item>
-                <List.Item>Prisma ORM (SQLite)</List.Item>
+                <List.Item>Prisma ORM (PostgreSQL)</List.Item>
                 <List.Item>Shopify Admin GraphQL API</List.Item>
                 <List.Item>Theme App Extension (App Blocks &amp; App Embeds)</List.Item>
               </List>

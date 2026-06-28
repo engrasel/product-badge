@@ -20,32 +20,22 @@ import {
   RadioButton,
   Tabs,
   Text,
-  Tag,
-  Button,
 } from "@shopify/polaris";
+import { UndoIcon, RedoIcon } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
 import { deleteBadge, getBadge, updateBadge } from "../services/badge.service";
-import { getShopPlan } from "../services/plan.service";
 import { listLocations } from "../services/displayLocation.service";
-import { deleteRule, upsertRule } from "../services/displayRule.service";
+import { createRule, deleteRule, setBadgeMatchType } from "../services/displayRule.service";
 import { useBadgeForm } from "../hooks/useBadgeForm";
 import { ColorField } from "../components/customizer/ColorField";
 import { PositionPicker } from "../components/customizer/PositionPicker";
 import { ProductPreviewCard } from "../components/badges/ProductPreviewCard";
-import { RuleEditorModal } from "../components/rules/RuleEditorModal";
-import { UpgradeModal } from "../components/premium/UpgradeModal";
-import { PremiumLock } from "../components/premium/PremiumLock";
-import {
-  canUseLocation,
-  canUseShape,
-  type Plan,
-} from "../utils/planLimits";
+import { RuleBuilder } from "../components/rules/RuleBuilder";
 import {
   parseBadgeDisplayLocations,
   serializeBadgeDisplayLocations,
 } from "../utils/badgeDisplayLocations";
-import { formatRuleSummary } from "../utils/formatRule";
 import {
   BADGE_ANIMATIONS,
   BADGE_SHAPES,
@@ -57,9 +47,8 @@ import type { DisplayLocationKey } from "../types/locations.types";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const [badge, { plan }, shopLocations] = await Promise.all([
+  const [badge, shopLocations] = await Promise.all([
     getBadge(session.shop, params.id as string),
-    getShopPlan(session.shop),
     listLocations(session.shop),
   ]);
 
@@ -72,7 +61,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     shopEnabledLocations[location.key] = location.enabled;
   }
 
-  return { badge, plan, shopEnabledLocations };
+  return { badge, shopEnabledLocations };
 };
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
@@ -86,16 +75,22 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     return redirect("/app/badges");
   }
 
-  if (intent === "upsertRule") {
+  if (intent === "addRule") {
     const type = String(formData.get("type")) as DisplayRuleType;
     const rawValue = formData.get("value");
     const value = rawValue ? JSON.parse(String(rawValue)) : undefined;
-    await upsertRule(session.shop, id, type, value);
+    await createRule(session.shop, id, type, value);
     return { ok: true, intent };
   }
 
   if (intent === "deleteRule") {
     await deleteRule(session.shop, String(formData.get("ruleId")));
+    return { ok: true, intent };
+  }
+
+  if (intent === "setMatchType") {
+    const matchType = String(formData.get("matchType")) as "ALL" | "ANY";
+    await setBadgeMatchType(session.shop, id, matchType);
     return { ok: true, intent };
   }
 
@@ -154,15 +149,12 @@ const TABS = [
 ];
 
 export default function BadgeWizard() {
-  const { badge, plan, shopEnabledLocations } = useLoaderData<typeof loader>();
+  const { badge, shopEnabledLocations } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
-  const { values, update } = useBadgeForm(badge);
+  const { values, update, undo, redo, reset, canUndo, canRedo } = useBadgeForm(badge);
   const [tabIndex, setTabIndex] = useState(0);
-  const [showRuleEditor, setShowRuleEditor] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  const isPremium: boolean = plan === "PREMIUM";
   const isSaving = fetcher.state !== "idle" && fetcher.formData?.get("intent") === undefined;
 
   useEffect(() => {
@@ -170,14 +162,6 @@ export default function BadgeWizard() {
       shopify.toast.show("Badge saved");
     }
   }, [fetcher.data, shopify]);
-
-  const lockOrApply = (allowed: boolean, apply: () => void) => {
-    if (!allowed) {
-      setShowUpgradeModal(true);
-      return;
-    }
-    apply();
-  };
 
   const handleSave = () => {
     fetcher.submit(
@@ -205,20 +189,30 @@ export default function BadgeWizard() {
     fetcher.submit({ intent: "delete" }, { method: "post" });
   };
 
-  const handleSaveRule = (type: DisplayRuleType, value: unknown) => {
+  const handleReset = () => {
+    if (!window.confirm("Reset all changes back to the last saved version?")) {
+      return;
+    }
+    reset();
+  };
+
+  const handleAddRule = (type: DisplayRuleType, value: unknown) => {
     fetcher.submit(
       {
-        intent: "upsertRule",
+        intent: "addRule",
         type,
         value: value !== undefined ? JSON.stringify(value) : "",
       },
       { method: "post" },
     );
-    setShowRuleEditor(false);
   };
 
-  const handleDeleteRule = (ruleId: string) => {
+  const handleRemoveRule = (ruleId: string) => {
     fetcher.submit({ intent: "deleteRule", ruleId }, { method: "post" });
+  };
+
+  const handleChangeMatchType = (matchType: "ALL" | "ANY") => {
+    fetcher.submit({ intent: "setMatchType", matchType }, { method: "post" });
   };
 
   const dateInputValue = (date: Date | null) => {
@@ -229,15 +223,9 @@ export default function BadgeWizard() {
 
   const effectiveLocations: DisplayLocationKey[] =
     parseBadgeDisplayLocations(values.displayLocations) ??
-    DISPLAY_LOCATIONS.filter((location) => canUseLocation(plan as Plan, location.value)).map(
-      (location) => location.value,
-    );
+    DISPLAY_LOCATIONS.map((location) => location.value);
 
   const toggleLocation = (key: DisplayLocationKey, checked: boolean) => {
-    if (checked && !canUseLocation(plan as Plan, key)) {
-      setShowUpgradeModal(true);
-      return;
-    }
     const next = checked
       ? [...effectiveLocations, key]
       : effectiveLocations.filter((existing) => existing !== key);
@@ -247,13 +235,16 @@ export default function BadgeWizard() {
   return (
     <Page
       title={values.name || "Edit Badge"}
-      backAction={{ content: "Badge Library", url: "/app/badges" }}
+      backAction={{ content: "Badges", url: "/app/badges" }}
       primaryAction={{
         content: "Save",
         onAction: handleSave,
         loading: isSaving,
       }}
       secondaryActions={[
+        { content: "Undo", icon: UndoIcon, disabled: !canUndo, onAction: undo },
+        { content: "Redo", icon: RedoIcon, disabled: !canRedo, onAction: redo },
+        { content: "Reset", onAction: handleReset },
         { content: "Delete", destructive: true, onAction: handleDelete },
       ]}
     >
@@ -293,12 +284,9 @@ export default function BadgeWizard() {
 
                 <Card>
                   <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <Text as="h2" variant="headingMd">
-                        Background
-                      </Text>
-                      {!isPremium && <PremiumLock />}
-                    </InlineStack>
+                    <Text as="h2" variant="headingMd">
+                      Background
+                    </Text>
                     <InlineStack gap="400">
                       <RadioButton
                         label="Solid"
@@ -308,7 +296,7 @@ export default function BadgeWizard() {
                       <RadioButton
                         label="Gradient"
                         checked={values.backgroundType === "GRADIENT"}
-                        onChange={() => lockOrApply(isPremium, () => update("backgroundType", "GRADIENT"))}
+                        onChange={() => update("backgroundType", "GRADIENT")}
                       />
                     </InlineStack>
 
@@ -354,14 +342,10 @@ export default function BadgeWizard() {
                       label="Shape"
                       options={BADGE_SHAPES.map((shape) => ({
                         value: shape.value,
-                        label: shape.isPro && !isPremium ? `${shape.label} (Premium)` : shape.label,
+                        label: shape.label,
                       }))}
                       value={values.shape}
-                      onChange={(value) =>
-                        lockOrApply(canUseShape(plan as Plan, value as BadgeStyleInput["shape"]), () =>
-                          update("shape", value as BadgeStyleInput["shape"]),
-                        )
-                      }
+                      onChange={(value) => update("shape", value as BadgeStyleInput["shape"])}
                     />
                     <Select
                       label="Font Weight"
@@ -447,12 +431,9 @@ export default function BadgeWizard() {
 
                 <Card>
                   <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <Text as="h2" variant="headingMd">
-                        Position & Motion
-                      </Text>
-                      {!isPremium && <PremiumLock />}
-                    </InlineStack>
+                    <Text as="h2" variant="headingMd">
+                      Position & Motion
+                    </Text>
                     <PositionPicker
                       position={values.position}
                       offsetX={values.offsetX}
@@ -472,19 +453,9 @@ export default function BadgeWizard() {
                     />
                     <Select
                       label="Animation"
-                      options={BADGE_ANIMATIONS.map((animation) => ({
-                        value: animation.value,
-                        label:
-                          animation.value !== "NONE" && !isPremium
-                            ? `${animation.label} (Premium)`
-                            : animation.label,
-                      }))}
+                      options={BADGE_ANIMATIONS}
                       value={values.animation}
-                      onChange={(value) =>
-                        lockOrApply(isPremium || value === "NONE", () =>
-                          update("animation", value as BadgeStyleInput["animation"]),
-                        )
-                      }
+                      onChange={(value) => update("animation", value as BadgeStyleInput["animation"])}
                     />
                   </BlockStack>
                 </Card>
@@ -510,33 +481,17 @@ export default function BadgeWizard() {
             {tabIndex === 1 && (
               <Card>
                 <BlockStack gap="300">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text as="h2" variant="headingMd">
-                      Display Rules
-                    </Text>
-                    <Button onClick={() => setShowRuleEditor(true)}>Manage Rules</Button>
-                  </InlineStack>
-
-                  {badge.rules.length === 0 ? (
-                    <Text as="p" tone="subdued">
-                      No display rules yet — this badge won&apos;t show anywhere until you add one.
-                    </Text>
-                  ) : (
-                    <InlineStack gap="200">
-                      {badge.rules.map((rule) => (
-                        <Tag key={rule.id} onRemove={() => handleDeleteRule(rule.id)}>
-                          {formatRuleSummary(rule)}
-                        </Tag>
-                      ))}
-                    </InlineStack>
-                  )}
-
-                  {plan === "FREE" && (
-                    <Text as="p" tone="subdued" variant="bodySm">
-                      Free plan: only All Products and Discount Products rules are available.
-                      Upgrade to Premium for collection, tag, vendor, inventory, and price rules.
-                    </Text>
-                  )}
+                  <Text as="h2" variant="headingMd">
+                    Display Rules
+                  </Text>
+                  <RuleBuilder
+                    rules={badge.rules}
+                    matchType={badge.matchType}
+                    onChangeMatchType={handleChangeMatchType}
+                    onAddRule={handleAddRule}
+                    onRemoveRule={handleRemoveRule}
+                    saving={fetcher.state !== "idle"}
+                  />
                 </BlockStack>
               </Card>
             )}
@@ -554,19 +509,16 @@ export default function BadgeWizard() {
                     </Text>
                     <BlockStack gap="150">
                       {DISPLAY_LOCATIONS.map((location) => {
-                        const locked = !canUseLocation(plan as Plan, location.value);
                         const shopDisabled = shopEnabledLocations[location.value] === false;
                         return (
-                          <InlineStack key={location.value} align="space-between" blockAlign="center">
-                            <Checkbox
-                              label={location.label}
-                              checked={effectiveLocations.includes(location.value)}
-                              disabled={location.comingSoon}
-                              onChange={(checked) => toggleLocation(location.value, checked)}
-                              helpText={shopDisabled ? "Disabled shop-wide" : undefined}
-                            />
-                            {locked && <PremiumLock />}
-                          </InlineStack>
+                          <Checkbox
+                            key={location.value}
+                            label={location.label}
+                            checked={effectiveLocations.includes(location.value)}
+                            disabled={location.comingSoon}
+                            onChange={(checked) => toggleLocation(location.value, checked)}
+                            helpText={shopDisabled ? "Disabled shop-wide" : undefined}
+                          />
                         );
                       })}
                     </BlockStack>
@@ -575,28 +527,21 @@ export default function BadgeWizard() {
 
                 <Card>
                   <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <Text as="h2" variant="headingMd">
-                        Schedule
-                      </Text>
-                      {!isPremium && <PremiumLock />}
-                    </InlineStack>
+                    <Text as="h2" variant="headingMd">
+                      Schedule
+                    </Text>
                     <InlineStack gap="300" wrap={false}>
                       <TextField
                         label="Start date"
                         type="date"
                         value={dateInputValue(values.scheduleStart)}
-                        disabled={!isPremium}
-                        onChange={(value) =>
-                          update("scheduleStart", value ? new Date(value) : null)
-                        }
+                        onChange={(value) => update("scheduleStart", value ? new Date(value) : null)}
                         autoComplete="off"
                       />
                       <TextField
                         label="End date"
                         type="date"
                         value={dateInputValue(values.scheduleEnd)}
-                        disabled={!isPremium}
                         onChange={(value) => update("scheduleEnd", value ? new Date(value) : null)}
                         autoComplete="off"
                       />
@@ -604,7 +549,6 @@ export default function BadgeWizard() {
                     <TextField
                       label="Timezone"
                       value={values.timezone ?? ""}
-                      disabled={!isPremium}
                       onChange={(value) => update("timezone", value || null)}
                       autoComplete="off"
                       placeholder="e.g. America/New_York"
@@ -614,18 +558,14 @@ export default function BadgeWizard() {
 
                 <Card>
                   <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <Text as="h2" variant="headingMd">
-                        Display Priority
-                      </Text>
-                      {!isPremium && <PremiumLock />}
-                    </InlineStack>
+                    <Text as="h2" variant="headingMd">
+                      Display Priority
+                    </Text>
                     <RangeSlider
                       label={`Priority: ${values.priority}`}
                       min={0}
                       max={10}
                       value={values.priority}
-                      disabled={!isPremium}
                       onChange={(value) => update("priority", value as number)}
                       helpText="Higher priority wins when multiple badges match the same product."
                     />
@@ -634,18 +574,14 @@ export default function BadgeWizard() {
 
                 <Card>
                   <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <Text as="h2" variant="headingMd">
-                        Custom CSS
-                      </Text>
-                      {!isPremium && <PremiumLock />}
-                    </InlineStack>
+                    <Text as="h2" variant="headingMd">
+                      Custom CSS
+                    </Text>
                     <TextField
                       label="Custom CSS"
                       labelHidden
                       multiline={4}
                       value={values.customCssCode ?? ""}
-                      disabled={!isPremium}
                       onChange={(value) => update("customCssCode", value || null)}
                       autoComplete="off"
                       placeholder=".product-badge { letter-spacing: 0.5px; }"
@@ -668,20 +604,6 @@ export default function BadgeWizard() {
           </Card>
         </Layout.Section>
       </Layout>
-
-      {showRuleEditor && (
-        <RuleEditorModal
-          badgeName={values.name}
-          existingTypes={badge.rules.map((rule) => rule.type)}
-          onClose={() => setShowRuleEditor(false)}
-          onSave={handleSaveRule}
-          saving={fetcher.state !== "idle"}
-          plan={plan as Plan}
-          onLockedSelect={() => setShowUpgradeModal(true)}
-        />
-      )}
-
-      <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
     </Page>
   );
 }

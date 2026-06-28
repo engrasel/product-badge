@@ -39,7 +39,7 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Badge Library</strong>. Pick from free and premium badge
+            <strong>Badges</strong>. Pick from a full library of badge
             templates — Sale, New, Best Seller, Flash Sale, and more.
           </li>
           <li>

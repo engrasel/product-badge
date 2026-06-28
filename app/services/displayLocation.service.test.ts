@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import prisma from "../db.server";
 import { ensureDefaultLocations, listLocations, setLocationEnabled } from "./displayLocation.service";
-import { setShopPremium } from "./plan.service";
 import { DISPLAY_LOCATIONS } from "../utils/constants";
 
 const shop = "vitest-fixture-locations.myshopify.com";
@@ -39,14 +38,5 @@ describe("displayLocation.service", () => {
     const locations = await listLocations(shop);
     expect(locations.find((location) => location.key === "PRODUCT_CARDS")?.enabled).toBe(false);
     expect(locations.find((location) => location.key === "COLLECTION_CARDS")?.enabled).toBe(true);
-  });
-
-  it("setLocationEnabled rejects enabling a Premium-only location on the Free plan", async () => {
-    await ensureDefaultLocations(shop);
-    await expect(setLocationEnabled(shop, "COLLECTION_CARDS", true)).rejects.toThrow();
-    await expect(setLocationEnabled(shop, "PRODUCT_CARDS", true)).resolves.toBeDefined();
-
-    await setShopPremium(shop, { chargeId: "test-charge" });
-    await expect(setLocationEnabled(shop, "COLLECTION_CARDS", true)).resolves.toBeDefined();
   });
 });

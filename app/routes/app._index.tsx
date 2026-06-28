@@ -17,6 +17,7 @@ import {
   Text,
   Badge as StatusBadge,
   Button,
+  List,
   EmptyState,
 } from "@shopify/polaris";
 
@@ -24,7 +25,6 @@ import { authenticate } from "../shopify.server";
 import { ensureShopSettings, setShopEnabled } from "../services/shopSettings.service";
 import { ensureDefaultLocations, listLocations } from "../services/displayLocation.service";
 import { ensureDefaultBadge, listBadges, updateBadge } from "../services/badge.service";
-import { getShopPlan } from "../services/plan.service";
 import { BadgePreview } from "../components/badges/BadgePreview";
 import { DISPLAY_RULE_TYPES } from "../utils/constants";
 
@@ -36,21 +36,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // touch unrelated tables, so they run in parallel rather than sequentially.
   await Promise.all([ensureDefaultBadge(shop), ensureDefaultLocations(shop)]);
 
-  const [settings, badges, locations, plan] = await Promise.all([
+  const [settings, badges, locations] = await Promise.all([
     ensureShopSettings(shop),
     listBadges(shop),
     listLocations(shop),
-    getShopPlan(shop),
   ]);
 
   return {
     isEnabled: settings.isEnabled,
     badges,
+    totalBadgeCount: badges.length,
     activeBadgeCount: badges.filter((badge) => badge.isActive).length,
     enabledLocationCount: locations.filter((location) => location.enabled).length,
     totalLocationCount: locations.length,
-    plan: plan.plan,
-    isPremium: plan.isPremium,
   };
 };
 
@@ -76,11 +74,10 @@ export default function Dashboard() {
   const {
     isEnabled,
     badges,
+    totalBadgeCount,
     activeBadgeCount,
     enabledLocationCount,
     totalLocationCount,
-    plan,
-    isPremium,
   } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
@@ -111,9 +108,13 @@ export default function Dashboard() {
     );
   };
 
+  const recentBadges = [...badges]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+
   return (
     <Page
-      title="App Dashboard"
+      title="Dashboard"
       primaryAction={{
         content: "Create Badge",
         onAction: () => navigate("/app/badges/custom"),
@@ -141,18 +142,11 @@ export default function Dashboard() {
             <Card>
               <BlockStack gap="200">
                 <Text as="h3" variant="headingSm" tone="subdued">
-                  Current Plan
+                  Total Badges
                 </Text>
-                <InlineStack align="space-between" blockAlign="center">
-                  <StatusBadge tone={isPremium ? "warning" : "success"}>
-                    {plan === "PREMIUM" ? "Premium" : "Free"}
-                  </StatusBadge>
-                  {!isPremium && (
-                    <Button onClick={() => navigate("/app/billing")} size="slim" variant="primary">
-                      Upgrade
-                    </Button>
-                  )}
-                </InlineStack>
+                <Text as="p" variant="heading2xl">
+                  {totalBadgeCount}
+                </Text>
               </BlockStack>
             </Card>
 
@@ -185,18 +179,18 @@ export default function Dashboard() {
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text as="h2" variant="headingMd">
-                  Your Badges
+                  Recent Badges
                 </Text>
                 <Button onClick={() => navigate("/app/badges")} variant="plain">
-                  Browse Badge Library
+                  View all badges
                 </Button>
               </InlineStack>
 
-              {badges.length === 0 ? (
+              {recentBadges.length === 0 ? (
                 <EmptyState
                   heading="No badges yet"
                   action={{
-                    content: "Browse Badge Library",
+                    content: "Browse Templates",
                     onAction: () => navigate("/app/badges"),
                   }}
                   image="https://cdn.shopify.com/s/files/1/0757/9955/files/empty-state.svg"
@@ -205,7 +199,7 @@ export default function Dashboard() {
                 </EmptyState>
               ) : (
                 <BlockStack gap="300">
-                  {badges.map((badge) => {
+                  {recentBadges.map((badge) => {
                     const ruleLabel =
                       DISPLAY_RULE_TYPES.find((rule) => rule.value === badge.rules[0]?.type)
                         ?.label ?? "No rule set";
@@ -244,30 +238,51 @@ export default function Dashboard() {
         </Layout.Section>
 
         <Layout.Section variant="oneThird">
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingMd">
-                Quick Actions
-              </Text>
-              <Button onClick={() => navigate("/app/badges")} fullWidth textAlign="left">
-                Badge Library
-              </Button>
-              <Button onClick={() => navigate("/app/badges/custom")} fullWidth textAlign="left">
-                Create Badge
-              </Button>
-              <Button onClick={() => navigate("/app/rules")} fullWidth textAlign="left">
-                Display Rules
-              </Button>
-              <Button onClick={() => navigate("/app/locations")} fullWidth textAlign="left">
-                Display Locations
-              </Button>
-              {!isPremium && (
-                <Button onClick={() => navigate("/app/billing")} fullWidth textAlign="left" variant="primary">
-                  Upgrade to Premium
+          <BlockStack gap="400">
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h2" variant="headingMd">
+                  Quick Actions
+                </Text>
+                <Button onClick={() => navigate("/app/badges")} fullWidth textAlign="left">
+                  Badges
                 </Button>
-              )}
-            </BlockStack>
-          </Card>
+                <Button onClick={() => navigate("/app/badges/custom")} fullWidth textAlign="left">
+                  Create Badge
+                </Button>
+                <Button onClick={() => navigate("/app/rules")} fullWidth textAlign="left">
+                  Display Rules
+                </Button>
+                <Button onClick={() => navigate("/app/locations")} fullWidth textAlign="left">
+                  Display Locations
+                </Button>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h2" variant="headingMd">
+                  Helpful Tips
+                </Text>
+                <List>
+                  <List.Item>
+                    A badge needs an active status, a Display Rule, and an enabled Display
+                    Location to actually show on your storefront.
+                  </List.Item>
+                  <List.Item>
+                    Use Duplicate on the Badges page to quickly create variants of a badge
+                    you already like.
+                  </List.Item>
+                  <List.Item>
+                    Check the Help page for a full setup checklist and FAQs.
+                  </List.Item>
+                </List>
+                <Button onClick={() => navigate("/app/help")} variant="plain">
+                  Visit Help
+                </Button>
+              </BlockStack>
+            </Card>
+          </BlockStack>
         </Layout.Section>
       </Layout>
     </Page>

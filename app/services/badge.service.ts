@@ -6,30 +6,23 @@ import {
   DEFAULT_BADGE_STYLE,
   DEFAULT_DISPLAY_RULE_TYPE,
 } from "../utils/constants";
-import { getShopPlan } from "./plan.service";
-import {
-  FREE_LOCATIONS,
-  FREE_SHAPES,
-  canUseTemplate,
-} from "../utils/planLimits";
-import {
-  parseBadgeDisplayLocations,
-  serializeBadgeDisplayLocations,
-} from "../utils/badgeDisplayLocations";
 
 type BadgeWithRules = Badge & { rules: DisplayRule[] };
 
-// SQLite stores shape/animation/position/rule type as plain strings (Prisma has
-// no enum support on SQLite). This is the one place that trusts the DB and casts
-// them back to the narrow union types — every caller downstream gets a fully
-// typed domain object.
+// Postgres stores shape/animation/position/rule type as plain strings (no
+// native enum support in this schema). This is the one place that trusts the
+// DB and casts them back to the narrow union types — every caller downstream
+// gets a fully typed domain object.
 function toDomain(row: unknown): BadgeWithRules {
   return row as BadgeWithRules;
 }
 
-export async function listBadges(shop: string): Promise<BadgeWithRules[]> {
+export async function listBadges(
+  shop: string,
+  opts?: { includeArchived?: boolean },
+): Promise<BadgeWithRules[]> {
   const rows = await prisma.badge.findMany({
-    where: { shop },
+    where: { shop, ...(opts?.includeArchived ? {} : { isArchived: false }) },
     include: { rules: true },
     orderBy: { createdAt: "asc" },
   });
@@ -51,36 +44,6 @@ export async function deleteBadge(shop: string, id: string) {
   return prisma.badge.deleteMany({ where: { shop, id } });
 }
 
-// Strips/clamps premium-only fields back to their free-plan-safe defaults.
-// Called on every write so a free shop's data can never carry premium state —
-// whether from a stale client, a direct request, or a downgrade after a
-// cancelled subscription.
-function sanitizeForFreePlan(data: Partial<BadgeStyleInput>): Partial<BadgeStyleInput> {
-  const sanitized: Partial<BadgeStyleInput> = { ...data };
-
-  if (sanitized.backgroundType !== undefined) sanitized.backgroundType = "SOLID";
-  if (sanitized.gradientColor1 !== undefined) sanitized.gradientColor1 = null;
-  if (sanitized.gradientColor2 !== undefined) sanitized.gradientColor2 = null;
-  if (sanitized.shape !== undefined && !FREE_SHAPES.includes(sanitized.shape)) {
-    sanitized.shape = "RIBBON";
-  }
-  if (sanitized.animation !== undefined) sanitized.animation = "NONE";
-  if (sanitized.priority !== undefined) sanitized.priority = 0;
-  if (sanitized.scheduleStart !== undefined) sanitized.scheduleStart = null;
-  if (sanitized.scheduleEnd !== undefined) sanitized.scheduleEnd = null;
-  if (sanitized.timezone !== undefined) sanitized.timezone = null;
-  if (sanitized.customCssCode !== undefined) sanitized.customCssCode = null;
-  if (sanitized.displayLocations !== undefined) {
-    const requested = parseBadgeDisplayLocations(sanitized.displayLocations);
-    const allowed = requested
-      ? requested.filter((key) => FREE_LOCATIONS.includes(key))
-      : FREE_LOCATIONS;
-    sanitized.displayLocations = serializeBadgeDisplayLocations(allowed);
-  }
-
-  return sanitized;
-}
-
 // Verifies the badge belongs to `shop` before writing, so one shop can never
 // edit another shop's badge by guessing its id.
 export async function updateBadge(
@@ -93,29 +56,65 @@ export async function updateBadge(
     throw new Error("Badge not found");
   }
 
-  const { plan } = await getShopPlan(shop);
-  const safeData = plan === "FREE" ? sanitizeForFreePlan(data) : data;
-
   const updated = await prisma.badge.update({
     where: { id },
-    data: safeData,
+    data,
     include: { rules: true },
   });
 
   return toDomain(updated);
 }
 
-// "Custom Badge" nav entry — starts a brand-new badge from scratch (not from
-// a library template) and drops the merchant straight into the Customizer.
-// The custom designer itself is a Premium feature (spec: "No custom badge
-// designer" on Free), so this throws for free shops rather than silently
-// creating a badge they can't fully configure.
-export async function createCustomBadge(shop: string) {
-  const { plan } = await getShopPlan(shop);
-  if (plan === "FREE") {
-    throw new Error("Custom badge design is a Premium feature. Upgrade to Premium to use it.");
+export async function setBadgeArchived(
+  shop: string,
+  id: string,
+  isArchived: boolean,
+): Promise<BadgeWithRules> {
+  const existing = await prisma.badge.findFirst({ where: { shop, id } });
+  if (!existing) {
+    throw new Error("Badge not found");
   }
 
+  const updated = await prisma.badge.update({
+    where: { id },
+    data: { isArchived },
+    include: { rules: true },
+  });
+
+  return toDomain(updated);
+}
+
+// Clones a badge's style and rules into a new badge, suffixing the name so
+// merchants can tell the copy apart at a glance before renaming it.
+export async function duplicateBadge(shop: string, id: string): Promise<BadgeWithRules> {
+  const existing = await prisma.badge.findFirst({
+    where: { shop, id },
+    include: { rules: true },
+  });
+  if (!existing) {
+    throw new Error("Badge not found");
+  }
+
+  const { id: _id, createdAt, updatedAt, rules, name, isArchived, ...rest } = existing;
+
+  const created = await prisma.badge.create({
+    data: {
+      ...rest,
+      name: `${name} (Copy)`,
+      isArchived: false,
+      rules: {
+        create: rules.map(({ type, value }) => ({ shop, type, value })),
+      },
+    },
+    include: { rules: true },
+  });
+
+  return toDomain(created);
+}
+
+// "Create Badge" nav entry — starts a brand-new badge from scratch (not from
+// a library template) and drops the merchant straight into the Customizer.
+export async function createCustomBadge(shop: string) {
   const badge = await prisma.badge.create({
     data: {
       shop,
@@ -130,18 +129,11 @@ export async function createCustomBadge(shop: string) {
   return toDomain(badge);
 }
 
-// Creates a new Badge from a Badge Library template. Free templates only —
-// premium templates are gated client-side by the Upgrade modal, but we
-// re-check here since a request body can't be trusted.
+// Creates a new Badge from a Badge Library template.
 export async function createBadgeFromTemplate(shop: string, templateKey: string) {
   const template = BADGE_TEMPLATES.find((candidate) => candidate.key === templateKey);
   if (!template) {
     throw new Error(`Unknown badge template: ${templateKey}`);
-  }
-
-  const { plan } = await getShopPlan(shop);
-  if (!canUseTemplate(plan, template.key, template.isPro)) {
-    throw new Error(`"${template.name}" is a Premium template and cannot be selected on the Free plan`);
   }
 
   const badge = await prisma.badge.create({

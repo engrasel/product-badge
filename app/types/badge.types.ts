@@ -1,8 +1,6 @@
-// Domain types for a Badge. SQLite/Prisma stores the unions below as plain strings;
+// Domain types for a Badge. Postgres/Prisma stores the unions below as plain strings;
 // these types are the single source of truth for what values are valid app-wide.
 
-// RECTANGLE/ROUNDED/CIRCLE/RIBBON are free; PILL/TAG/CORNER/OUTLINE are premium
-// (see FREE_SHAPES in plan.service.ts).
 export type BadgeShape =
   | "RECTANGLE"
   | "ROUNDED"
@@ -39,6 +37,9 @@ export interface Badge {
   name: string;
   templateKey: string;
   isActive: boolean;
+  isArchived: boolean;
+  /** How this badge's DisplayRule rows combine: all must match, or any one match. */
+  matchType: "ALL" | "ANY";
 
   text: string;
   backgroundColor: string;
@@ -61,8 +62,7 @@ export interface Badge {
   offsetY: number;
   customCss: string | null;
 
-  // Premium design/display extensions — always re-validated against the
-  // shop's live plan server-side; never assume these are honored for a free shop.
+  // Design/display extensions.
   backgroundType: BadgeBackgroundType;
   gradientColor1: string | null;
   gradientColor2: string | null;
@@ -80,16 +80,17 @@ export interface Badge {
 }
 
 // The editable subset of Badge used by the customizer form and create/update services.
+// isArchived/matchType are managed by their own actions (archive toggle, rule
+// builder match mode), not by the style form.
 export type BadgeStyleInput = Omit<
   Badge,
-  "id" | "shop" | "createdAt" | "updatedAt"
+  "id" | "shop" | "createdAt" | "updatedAt" | "isArchived" | "matchType"
 >;
 
-// A library template (free or premium) merchants can start a badge from.
+// A library template merchants can start a badge from.
 export interface BadgeTemplate {
   key: string;
   name: string;
-  isPro: boolean;
   preview: Pick<
     BadgeStyleInput,
     | "text"

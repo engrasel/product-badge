@@ -13,75 +13,119 @@ import {
   Card,
   BlockStack,
   InlineStack,
+  Select,
   Text,
   Badge as StatusBadge,
   Button,
 } from "@shopify/polaris";
 
 import { authenticate } from "../shopify.server";
-import { ensureShopSettings, setShopEnabled } from "../services/shopSettings.service";
-import { listBadges } from "../services/badge.service";
-import { listLocations } from "../services/displayLocation.service";
-import { BADGE_TEMPLATES } from "../utils/constants";
+import {
+  ensureShopSettings,
+  resetShopSettings,
+  setShopEnabled,
+  setShopLanguage,
+  setShopTimezone,
+} from "../services/shopSettings.service";
+import { DEFAULT_BADGE_STYLE } from "../utils/constants";
+
+const LANGUAGE_OPTIONS = [
+  { label: "English", value: "en" },
+  { label: "French", value: "fr" },
+  { label: "German", value: "de" },
+  { label: "Spanish", value: "es" },
+];
+
+const TIMEZONE_OPTIONS = [
+  { label: "UTC", value: "UTC" },
+  { label: "America/New_York", value: "America/New_York" },
+  { label: "America/Los_Angeles", value: "America/Los_Angeles" },
+  { label: "Europe/London", value: "Europe/London" },
+  { label: "Asia/Tokyo", value: "Asia/Tokyo" },
+];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const shop = session.shop;
-
-  const [settings, badges, locations] = await Promise.all([
-    ensureShopSettings(shop),
-    listBadges(shop),
-    listLocations(shop),
-  ]);
-
-  const proTemplateKeys = new Set(
-    BADGE_TEMPLATES.filter((template) => template.isPro).map((template) => template.key),
-  );
+  const settings = await ensureShopSettings(session.shop);
 
   return {
-    shop,
+    shop: session.shop,
     isEnabled: settings.isEnabled,
-    freeBadgeCount: badges.filter((badge) => !proTemplateKeys.has(badge.templateKey)).length,
-    proBadgeCount: badges.filter((badge) => proTemplateKeys.has(badge.templateKey)).length,
-    enabledLocationCount: locations.filter((location) => location.enabled).length,
-    totalLocationCount: locations.length,
+    language: settings.language,
+    timezone: settings.timezone,
   };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
-  const isEnabled = formData.get("isEnabled") === "true";
+  const intent = String(formData.get("intent") ?? "toggleEnabled");
 
+  if (intent === "setLanguage") {
+    await setShopLanguage(session.shop, String(formData.get("language")));
+    return { ok: true };
+  }
+
+  if (intent === "setTimezone") {
+    const timezone = String(formData.get("timezone") ?? "");
+    await setShopTimezone(session.shop, timezone || null);
+    return { ok: true };
+  }
+
+  if (intent === "reset") {
+    await resetShopSettings(session.shop);
+    return { ok: true };
+  }
+
+  if (intent === "rebuildCache") {
+    // No server-side cache to invalidate — the storefront proxy response
+    // carries a 60s Cache-Control header that expires on its own. This is a
+    // reassurance action, not real invalidation work.
+    return { ok: true };
+  }
+
+  const isEnabled = formData.get("isEnabled") === "true";
   await setShopEnabled(session.shop, isEnabled);
   return { ok: true };
 };
 
 export default function Settings() {
-  const {
-    shop,
-    isEnabled,
-    freeBadgeCount,
-    proBadgeCount,
-    enabledLocationCount,
-    totalLocationCount,
-  } = useLoaderData<typeof loader>();
+  const { shop, isEnabled, language, timezone } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
 
-  const isToggling = fetcher.state !== "idle";
+  const isToggling =
+    fetcher.state !== "idle" && fetcher.formData?.get("intent") === undefined;
   const displayIsEnabled = isToggling
     ? fetcher.formData?.get("isEnabled") === "true"
     : isEnabled;
 
   useEffect(() => {
     if (fetcher.data?.ok) {
-      shopify.toast.show("Settings saved");
+      const intent = fetcher.formData?.get("intent");
+      if (intent === "reset") {
+        shopify.toast.show("Settings reset to defaults");
+      } else if (intent === "rebuildCache") {
+        shopify.toast.show("Cache will refresh automatically within 60 seconds");
+      } else {
+        shopify.toast.show("Settings saved");
+      }
     }
-  }, [fetcher.data, shopify]);
+  }, [fetcher.data, fetcher.formData, shopify]);
 
   const toggleEnabled = () => {
     fetcher.submit({ isEnabled: String(!displayIsEnabled) }, { method: "post" });
+  };
+
+  const handleReset = () => {
+    if (!window.confirm("Reset all app settings back to defaults?")) {
+      return;
+    }
+    fetcher.submit({ intent: "reset" }, { method: "post" });
+  };
+
+  const handleRebuildCache = () => {
+    fetcher.submit({ intent: "rebuildCache" }, { method: "post" });
   };
 
   return (
@@ -114,25 +158,74 @@ export default function Settings() {
             <Card>
               <BlockStack gap="300">
                 <Text as="h2" variant="headingMd">
-                  Plan &amp; Usage
+                  Default Badge Settings
                 </Text>
-                <InlineStack align="space-between">
-                  <Text as="span">Free badges in use</Text>
-                  <Text as="span" fontWeight="semibold">
-                    {freeBadgeCount} / 2
+                <Text as="p" tone="subdued">
+                  New custom badges start from this default style — change anything
+                  per-badge afterward in its own editor.
+                </Text>
+                <InlineStack gap="300" blockAlign="center">
+                  <StatusBadge tone="info">{DEFAULT_BADGE_STYLE.text}</StatusBadge>
+                  <Text as="span" tone="subdued">
+                    {DEFAULT_BADGE_STYLE.shape} shape · {DEFAULT_BADGE_STYLE.position.replace("_", " ").toLowerCase()} ·{" "}
+                    {DEFAULT_BADGE_STYLE.backgroundColor}
                   </Text>
                 </InlineStack>
-                <InlineStack align="space-between">
-                  <Text as="span">Pro badges in use</Text>
-                  <Text as="span" fontWeight="semibold">
-                    {proBadgeCount} / 12
-                  </Text>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h2" variant="headingMd">
+                  Language &amp; Timezone
+                </Text>
+                <Select
+                  label="Language"
+                  options={LANGUAGE_OPTIONS}
+                  value={language}
+                  onChange={(value) =>
+                    fetcher.submit({ intent: "setLanguage", language: value }, { method: "post" })
+                  }
+                />
+                <Select
+                  label="Timezone"
+                  options={TIMEZONE_OPTIONS}
+                  value={timezone ?? "UTC"}
+                  onChange={(value) =>
+                    fetcher.submit({ intent: "setTimezone", timezone: value }, { method: "post" })
+                  }
+                />
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h2" variant="headingMd">
+                  Maintenance
+                </Text>
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="050">
+                    <Text as="span" fontWeight="semibold">
+                      Rebuild Badge Cache
+                    </Text>
+                    <Text as="span" tone="subdued" variant="bodySm">
+                      Storefront badge data refreshes automatically every 60 seconds.
+                    </Text>
+                  </BlockStack>
+                  <Button onClick={handleRebuildCache}>Rebuild Cache</Button>
                 </InlineStack>
-                <InlineStack align="space-between">
-                  <Text as="span">Display locations enabled</Text>
-                  <Text as="span" fontWeight="semibold">
-                    {enabledLocationCount} / {totalLocationCount}
-                  </Text>
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="050">
+                    <Text as="span" fontWeight="semibold">
+                      Reset Settings
+                    </Text>
+                    <Text as="span" tone="subdued" variant="bodySm">
+                      Restores App Status, Language, and Timezone to their defaults.
+                    </Text>
+                  </BlockStack>
+                  <Button tone="critical" onClick={handleReset}>
+                    Reset Settings
+                  </Button>
                 </InlineStack>
               </BlockStack>
             </Card>

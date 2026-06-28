@@ -30,6 +30,8 @@ export function formatRuleSummary(rule: Pick<DisplayRule, "type" | "value">): st
         return `${label}: within ${value.withinDays} days`;
       case "PRICE_ABOVE":
         return `${label}: > $${value.amount}`;
+      case "STATUS":
+        return `${label}: ${value.statuses?.join(", ")}`;
       default:
         return label;
     }

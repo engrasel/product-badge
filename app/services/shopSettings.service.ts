@@ -15,3 +15,24 @@ export async function setShopEnabled(shop: string, isEnabled: boolean) {
     data: { isEnabled },
   });
 }
+
+export async function setShopLanguage(shop: string, language: string) {
+  return prisma.shopSettings.update({
+    where: { shop },
+    data: { language },
+  });
+}
+
+export async function setShopTimezone(shop: string, timezone: string | null) {
+  return prisma.shopSettings.update({
+    where: { shop },
+    data: { timezone },
+  });
+}
+
+export async function resetShopSettings(shop: string) {
+  return prisma.shopSettings.update({
+    where: { shop },
+    data: { isEnabled: true, language: "en", timezone: null },
+  });
+}

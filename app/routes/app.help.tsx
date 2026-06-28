@@ -28,12 +28,7 @@ const FAQS: { question: string; answer: string }[] = [
   {
     question: "Can I use a badge on more than one set of products?",
     answer:
-      "Yes — create a second badge from the Badge Library or Custom Badge, and give it its own Display Rule. Each badge has independent rules.",
-  },
-  {
-    question: "Do Premium templates require payment right now?",
-    answer:
-      "Not yet — selecting a Premium template currently shows an \"Upgrade to Pro\" prompt as a preview of what's coming. No billing is active yet.",
+      "Yes — create a second badge from the Badges page or Create Badge, and give it its own Display Rule. Each badge has independent rules.",
   },
 ];
 

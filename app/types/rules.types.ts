@@ -9,7 +9,8 @@ export type DisplayRuleType =
   | "INVENTORY_BELOW"
   | "NEW_PRODUCTS"
   | "BEST_SELLING"
-  | "PRICE_ABOVE";
+  | "PRICE_ABOVE"
+  | "STATUS";
 
 // Mirrors the Prisma DisplayRule model. `value` is parsed from its JSON-encoded
 // column into the shape each rule type expects (see RuleValueByType below).
@@ -39,4 +40,5 @@ export interface RuleValueByType {
   NEW_PRODUCTS: { withinDays: number };
   BEST_SELLING: null;
   PRICE_ABOVE: { amount: number };
+  STATUS: { statuses: ("ACTIVE" | "DRAFT" | "ARCHIVED")[] };
 }
